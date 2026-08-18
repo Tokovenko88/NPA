@@ -176,7 +176,7 @@ def generate_result_filename(result_data, source_data):
     return f"{orig_clean_num}_{orig_date}_izm_{change_clean_num}_{change_date}.json"
 
 
-def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_npa_id=None):
+def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
     """Применить изменение этапа 1 (утрата силы) к целевому документу."""
     structural_for_delete = change.get('structural_element_for_delete', '').strip()
     valid_from_str = change.get('valid_from', '')
@@ -215,6 +215,9 @@ def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_n
     try:
         target = _find_existing_element_flexible(data, structural_for_delete, log_callback)
     except ValueError:
+        if strict:
+            log_callback(f"  Stage 1: неоднозначность для '{structural_for_delete}', отказ (strict)", 'error')
+            return False
         target = None
     if not target:
         log_callback(f"  Stage 1: элемент не найден для утраты: {structural_for_delete}", 'error')
@@ -238,7 +241,7 @@ def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_n
     return True
 
 
-def _apply_stage2_date_change(data, change, valid_from_dt, log_callback, source_npa_id=None):
+def _apply_stage2_date_change(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
     """Применить изменение этапа 2 (специальные даты / ретроактивные notes)."""
     applies_to = change.get('applies_to', '').strip()
     action_type = change.get('action_type', '').strip()
@@ -252,6 +255,9 @@ def _apply_stage2_date_change(data, change, valid_from_dt, log_callback, source_
         try:
             target = _find_existing_element_flexible(data, structural, log_callback)
         except ValueError:
+            if strict:
+                log_callback(f"  Stage 2: неоднозначность для '{structural}', отказ (strict)", 'error')
+                return False
             target = None
     if action_type == 'special_valid_from':
         if target is None:
@@ -307,7 +313,7 @@ def _date_minus_one(dt):
     return (dt - timedelta(days=1)).strftime('%d.%m.%Y')
 
 
-def _load_stage_answers(name_prefix):
+def _load_stage_answers(name_prefix, log_callback=None):
     """Загрузить все ответы этапа, соответствующие префикексу (prompt_N_answer[_article_M])."""
     results = []
     candidates = []
@@ -319,8 +325,12 @@ def _load_stage_answers(name_prefix):
             data = load_json(path)
             if isinstance(data, list):
                 results.extend(data)
-        except Exception:
-            pass
+        except Exception as e:
+            msg = f"Warning: failed to load stage answer {path}: {e}"
+            if log_callback:
+                log_callback(msg, 'warning')
+            else:
+                print(msg)
     return results
 
 
@@ -670,6 +680,8 @@ def main(args=None):
     parser.add_argument('--result-dir', help='Custom result directory (default: work/results)')
     parser.add_argument('--keep-previous', action='store_true',
                         help='Do not delete previous results in the result directory')
+    parser.add_argument('--strict', action='store_true',
+                        help='Abort on ambiguous element resolution or missing data')
     parsed = parser.parse_args(args)
     
     result_dir = RESULT_DIR
@@ -696,7 +708,12 @@ def main(args=None):
     valid_from_date_str = source.get('valid_from', '')
     if not valid_from_date_str:
         valid_from_date_str = source.get('date_signed', '')
-    valid_from_dt = datetime.strptime(valid_from_date_str, '%d.%m.%Y').date()
+    if not valid_from_date_str:
+        raise ValueError("Source NPA missing valid_from/date_signed")
+    try:
+        valid_from_dt = datetime.strptime(valid_from_date_str, '%d.%m.%Y').date()
+    except (ValueError, TypeError):
+        raise ValueError(f"Invalid date format in source NPA: {valid_from_date_str!r}")
     source_npa_id = str(source['npa_id'])
     target_npa_id = str(target.get('npa_id', ''))
 
@@ -724,12 +741,12 @@ def main(args=None):
 
     # ========== STAGE 1: Revocation Analysis ==========
     log("Stage 1: Revocation analysis.")
-    stage1_changes = _load_stage_answers('prompt_1_answer')
+    stage1_changes = _load_stage_answers('prompt_1_answer', log)
     stage1_applied = 0
     stage1_failed = 0
     for change in stage1_changes:
         try:
-            ok = _apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id)
+            ok = _apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
             if ok:
                 stage1_applied += 1
                 history.snapshot(f'after_stage1_revoke_{stage1_applied}', result_data,
@@ -750,12 +767,12 @@ def main(args=None):
 
     # ========== STAGE 2: Dates Analysis ==========
     log("Stage 2: Dates and retroactive clauses analysis.")
-    stage2_changes = _load_stage_answers('prompt_2_answer')
+    stage2_changes = _load_stage_answers('prompt_2_answer', log)
     stage2_applied = 0
     stage2_failed = 0
     for change in stage2_changes:
         try:
-            ok = _apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id)
+            ok = _apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
             if ok:
                 stage2_applied += 1
                 history.snapshot(f'after_stage2_{stage2_applied}', result_data,
@@ -769,7 +786,7 @@ def main(args=None):
     log(f"  Stage 2: {len(stage2_changes)} найдено, применено {stage2_applied}, провалено {stage2_failed}")
 
     # ========== STAGE 3: Changes Extraction ==========
-    all_changes = _load_stage_answers('prompt_3_answer')
+    all_changes = _load_stage_answers('prompt_3_answer', log)
     log(f"Stage 3: Loaded {len(all_changes)} changes from prompt answers.")
 
     # Post-stage-3 validation: catch anti-patterns before applying
@@ -831,8 +848,13 @@ def main(args=None):
                 target_elem = None
                 try:
                     target_elem = _find_existing_element_flexible(result_data, structural, log)
-                except ValueError:
+                except ValueError as e:
                     target_elem = None
+                    if parsed.strict:
+                        log(f"  Stage 5: неоднозначность для '{structural}', отказ (strict): {e}", 'error')
+                        change['_resolved_item_id'] = None
+                        learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
+                        continue
                     log(f"  Неоднозначность для '{structural}', элемент не разрешён", 'warning')
                 if target_elem:
                     change['_resolved_item_id'] = target_elem['item_id']
@@ -1316,8 +1338,8 @@ def main(args=None):
                 try:
                     os.remove(old_path)
                     log(f"  Removed old result file: {fname}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    log(f"  Warning: could not remove old result file {fname}: {e}", 'warning')
 
     filename = generate_result_filename(result_data, source)
     result_path = os.path.join(result_dir, filename)

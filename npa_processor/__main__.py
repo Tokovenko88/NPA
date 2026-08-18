@@ -12,7 +12,7 @@ bootstrap_project_root()
 
 
 def run_pipeline():
-    from run_pipeline import main as pipeline_main
+    from scripts.run_pipeline import main as pipeline_main
     pipeline_main()
 
 

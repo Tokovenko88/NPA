@@ -39,7 +39,6 @@ from npa_processor._bootstrap import _bootstrap_project_root
 _bootstrap_project_root()
 
 from npa_processor.config import get_modx_db_config
-from npa_processor.constants import settings
 
 class QueueHandler(logging.Handler):
     def __init__(self, log_queue, level=logging.NOTSET):

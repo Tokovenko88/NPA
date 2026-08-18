@@ -1,10 +1,7 @@
 import os
-from npa_processor.config import get_settings
-
-settings = get_settings()
 
 CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
-PROMPTS_DIR = os.path.join(CONFIG_DIR, 'prompts')
+PROMPTS_DIR = os.path.join(os.path.dirname(CONFIG_DIR), 'prompts')
 
 DEFAULT_EXTRA_OPTIONS = {
     "temperature": 0.0,
@@ -35,12 +32,21 @@ PLURAL_TO_SINGULAR = {
 }
 
 
+def _resolve_prompt_path(filename):
+    candidates = [
+        os.path.join(PROMPTS_DIR, filename),
+        os.path.join(CONFIG_DIR, 'prompts', filename),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(f"Prompt file not found: {filename} (checked {candidates})")
+
+
 def load_prompt_from_file(filename):
-    path = os.path.join(PROMPTS_DIR, filename)
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()
-    return ""
+    path = _resolve_prompt_path(filename)
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read()
 
 
 PROMPT_1 = load_prompt_from_file('prompt_1.txt')

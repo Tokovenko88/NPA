@@ -25,15 +25,27 @@ Thumbs.db
 # Project specific - NOT stored in git
 # База: incomplete NPA database (JSON laws/resolutions)
 БАЗА/
+База/
 
 # Working files
-work/source/
-work/answers/
-work/results/
-work/chain_results/
+work/source/*
+work/answers/*
+work/results/*
+work/chain_results/*
+!work/.gitkeep
+!work/source/.gitkeep
+!work/answers/.gitkeep
+!work/results/.gitkeep
+!work/chain_results/.gitkeep
 
 # Agent runtime data (not instructions or examples)
-learning/
+learning/*
+!learning/.gitkeep
+
+# npa_processor/learning package runtime data (actual data stored in root learning/)
+npa_processor/learning/*.json
+npa_processor/learning/history/
+!npa_processor/learning/.gitkeep
 
 # Temporary working files
 tmp/
