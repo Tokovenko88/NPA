@@ -1,34 +1,16 @@
-"""Модуль парсинга HTML НПА в JSON.
+# -*- coding: utf-8 -*-
+"""Модуль парсинга HTML-фрагментов НПА в JSON.
 
-Содержит класс NpaToJsonGenerator для преобразования HTML-документов
+Содержит класс NpaToJsonGenerator для преобразования HTML-фрагментов
 нормативных правовых актов в структурированный JSON.
-Также содержит класс QueueHandler для логирования в очередь
-и функцию main() для запуска GUI."""
+"""
 
 import sys
-import subprocess
-import importlib
-import json
 import re
 import os
-import tempfile
-import threading
-import queue
-import urllib.request
-import urllib.error
-from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-import socket
-import paramiko
-import pymysql
-from pymysql.cursors import DictCursor
 import hashlib
-import time
-from functools import lru_cache
 import logging
-from logging.handlers import RotatingFileHandler
-import traceback
-import uuid
+from bs4 import BeautifulSoup
 
 _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _project_root not in sys.path:
@@ -38,16 +20,6 @@ from npa_processor._bootstrap import _bootstrap_project_root
 
 _bootstrap_project_root()
 
-from npa_processor.config import get_modx_db_config
-
-class QueueHandler(logging.Handler):
-    def __init__(self, log_queue, level=logging.NOTSET):
-        super().__init__(level)
-        self.log_queue = log_queue
-
-    def emit(self, record):
-        msg = self.format(record)
-        self.log_queue.put(('log', msg, record.levelname))
 
 class NpaToJsonGenerator:
     def __init__(self, html_content, doc_type='law', appendix_processing_decisions=None, document_id=None, fragment_element_id=None, root_number=None, root_type=None, log_queue=None, is_table_child=False, answer_queue=None, stop_event=None):
@@ -55,14 +27,9 @@ class NpaToJsonGenerator:
             self.logger = logging.getLogger('NpaToJsonGenerator')
             self.logger.setLevel(logging.DEBUG)
             self.logger.handlers.clear()
-            if log_queue is not None:
-                queue_handler = QueueHandler(log_queue)
-                queue_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-                self.logger.addHandler(queue_handler)
-            else:
-                handler = logging.StreamHandler()
-                handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-                self.logger.addHandler(handler)
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            self.logger.addHandler(handler)
         html_content = self.sup_digits_to_unicode(html_content)
         try:
             import lxml
@@ -78,19 +45,15 @@ class NpaToJsonGenerator:
         self.fragment_mode = bool(fragment_element_id)
         self.is_table_child = is_table_child
         self.toc_items = []
-        self.anchor_counter = 0
         self.stack = []
         self.current_level = 1
         self.has_chapters_flag = False
         self.has_articles_flag = False
-        self.preamble_added = False
         self.ambiguous_elements = []
         self.collisions = []
         self.resolved_patterns = {}
         self.current_appendix_id = None
-        self.current_appendix = None
         self.in_appendix = False
-        self.appendix_started = False
         self.appendix_processing_decisions = appendix_processing_decisions or {}
         self._article_regex = re.compile(r'Статья\s+(\d+(?:\.\d+)*(?:<sup>[^>]+</sup>|[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?)', re.IGNORECASE)
         self._chapter_regex = re.compile(r'^\s*Глава\s+([IVXLCDM]+(?:\.\d+)?|\d+(?:\.\d+)*(?:<sup>[^>]+</sup>|[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?)', re.I)
@@ -104,52 +67,18 @@ class NpaToJsonGenerator:
         self._service_phrase_regex = re.compile(r'^принят законодательным собранием|^с изменениями, принятыми:', re.IGNORECASE)
         self._appendix_main_regex = re.compile(r'Приложение\s+[№]?\s*(\d+(?:\.\d+)*|[IVXLCDM]+(?:\.\d+)?)', re.IGNORECASE)
         self._appendix_to_doc_regex = re.compile(r'к\s+(?:Закону|Постановлению|закону|постановлению)', re.IGNORECASE)
-        self.current_article_number = None
-        self.current_article_item = None
         self._numbering_type_cache = {}
         self.skip_until_next_appendix = False
-        self.current_skip_appendix_number = None
-        self.pending_parent_for_next_content = None
-        self.doc_title = ""
-        self.date_passed = ""
-        self.date_format = 1
-        self.term_number = ""
-        self.session_number = ""
-        self.npa_number = ""
-        self.law_end_index = -1
-        self.title_end_index = -1
-        self.regulation_header_end_index = 0
-        self.regulation_preamble_start_index = 0
-        self.regulation_main_start_index = 0
-        self.signature_start = None
-        self.signature_end = None
-        self.date_signed = ""
-        self.governor_post_html = ""
-        self.governor_name = ""
-        self.errors = []
-        self.visual_error_messages = set()
-        self.all_tags = None
-        self.signature_tags = []
-        self.enum_stack = []
-        self._pending_enum_parent = None
-        self.quote_level = 0
-        self.pending_content_buffer = []
-        self.log_queue = log_queue
-        self.answer_queue = answer_queue
-        self.stop_event = stop_event
         self._inside_structured_table = False
         self._table_counter = {}
         self.used_ids = {}
-        if not self.fragment_mode:
-            self.extract_metadata()
-        else:
-            self.doc_title = ""
-            self.date_passed = ""
-            self.date_format = 1
-            self.term_number = ""
-            self.session_number = ""
-            self.npa_number = ""
         self.no_name_parents = set()
+        self.errors = []
+        self.all_tags = None
+        self.enum_stack = []
+        self._pending_enum_parent = None
+        self.quote_level = 0
+        self.log_queue = log_queue
 
     def sup_digits_to_unicode(self, text):
         if not text:
@@ -971,535 +900,6 @@ class NpaToJsonGenerator:
             return converted_items[0] if converted_items else None
         return None
 
-    def extract_metadata(self):
-        if self.doc_type == 'law':
-            self.extract_law_metadata()
-        else:
-            self.extract_regulation_metadata()
-
-    def extract_law_metadata(self):
-        all_tags = self.soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
-        if not all_tags:
-            if self.soup.body:
-                all_tags = list(self.soup.body.children)
-            else:
-                all_tags = list(self.soup.children)
-            all_tags = [tag for tag in all_tags if hasattr(tag, 'name')]
-
-        start_phrase = "ЗАКОН ГОРОДА СЕВАСТОПОЛЯ"
-        end_phrase = "Принят Законодательным Собранием города Севастополя"
-        start_index = -1
-        end_index = -1
-        title_parts = []
-        i = 0
-        while i < len(all_tags):
-            tag = all_tags[i]
-            text = self.extract_text(tag).strip()
-            if not text:
-                i += 1
-                continue
-            if start_phrase in text.upper():
-                start_index = i
-                after_phrase = text[text.upper().find(start_phrase) + len(start_phrase):].strip()
-                if after_phrase:
-                    title_parts.append(after_phrase)
-                i += 1
-                break
-            if "ЗАКОН" in text.upper():
-                found = False
-                for j in range(i + 1, min(i + 5, len(all_tags))):
-                    next_tag = all_tags[j]
-                    next_text = self.extract_text(next_tag).strip()
-                    if not next_text:
-                        continue
-                    if "ГОРОДА СЕВАСТОПОЛЯ" in next_text.upper():
-                        start_index = j
-                        phrase_pos = next_text.upper().find("ГОРОДА СЕВАСТОПОЛЯ")
-                        after_phrase = next_text[phrase_pos + len("ГОРОДА СЕВАСТОПОЛЯ"):].strip()
-                        if after_phrase:
-                            title_parts.append(after_phrase)
-                        i = j + 1
-                        found = True
-                        break
-                if found:
-                    break
-            i += 1
-        else:
-            return
-
-        for j in range(i, len(all_tags)):
-            tag = all_tags[j]
-            text = self.extract_text(tag).strip()
-            if not text:
-                continue
-            if end_phrase in text:
-                before_phrase = text[:text.find(end_phrase)].strip()
-                if before_phrase:
-                    title_parts.append(before_phrase)
-                end_index = j
-                date_match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})\s+года', text)
-                if date_match:
-                    day, month_name, year = date_match.groups()
-                    date_str = f"{day} {month_name} {year}"
-                    dt, fmt = self.parse_russian_date(date_str)
-                    if dt:
-                        self.date_passed = dt.strftime('%d.%m.%Y')
-                        self.date_format = fmt
-                break
-            else:
-                title_parts.append(text)
-
-        if title_parts:
-            self.doc_title = self.normalize_text(' '.join(title_parts))
-
-        if end_index != -1:
-            self.law_end_index = end_index
-        else:
-            for j in range(i, len(all_tags)):
-                tag = all_tags[j]
-                text = self.extract_text(tag).strip()
-                if "Принят" in text and "Законодательным Собранием" in text:
-                    self.law_end_index = j
-                    date_match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})\s+года', text)
-                    if date_match:
-                        day, month_name, year = date_match.groups()
-                        date_str = f"{day} {month_name} {year}"
-                        dt, fmt = self.parse_russian_date(date_str)
-                        if dt:
-                            self.date_passed = dt.strftime('%d.%m.%Y')
-                            self.date_format = fmt
-                    break
-
-        sig_info = self.find_governor_signature(all_tags, end_index + 1)
-        if sig_info:
-            self.signature_start, self.signature_end, self.date_signed, self.governor_post_html, self.governor_name = sig_info
-        else:
-            self.errors.append("Подпись Губернатора не найдена")
-
-    def extract_regulation_metadata(self):
-        if self.all_tags is None:
-            self.all_tags = self.soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'table', 'span'])
-            self.all_tags = [tag for tag in self.all_tags if not (tag.name == 'span' and tag.parent and tag.parent.name == 'p')]
-            self.all_tags = self._filter_out_table_children(self.all_tags)
-            if not self.all_tags:
-                if self.soup.body:
-                    self.all_tags = list(self.soup.body.children)
-                else:
-                    self.all_tags = list(self.soup.children)
-                self.all_tags = [tag for tag in self.all_tags if hasattr(tag, 'name')]
-        all_tags = self.all_tags
-        found, start_idx = self._extract_metadata_from_table()
-        i = start_idx if found else 0
-        if not found:
-            service_parts = []
-            while i < len(all_tags):
-                tag = all_tags[i]
-                if not hasattr(tag, 'name'):
-                    i += 1
-                    continue
-                text = self.extract_text(tag).strip()
-                if not text:
-                    i += 1
-                    continue
-                if self.is_centered_tag(tag):
-                    service_parts.append(text)
-                    i += 1
-                    if re.search(r'\d{1,2}\s+[а-я]+\s+\d{4}\s+года.*№\s*\d+.*г\.\s*Севастополь', text, re.IGNORECASE):
-                        break
-                else:
-                    break
-            service_text = ' '.join(service_parts)
-            term_match = re.search(r'\b([IVXLCDM]+)\s+СОЗЫВ(?:А)?', service_text.upper())
-            self.term_number = term_match.group(1).upper() if term_match else ''
-            session_match = re.search(r'\b([IVXLCDM]+)\s+СЕССИ[ИЯ]', service_text.upper())
-            self.session_number = session_match.group(1).upper() if session_match else ''
-            num_match = re.search(r'№\s*(\d+(?:\s*[—–-]\s*\w+)?)', service_text)
-            self.npa_number = num_match.group(1) if num_match else ''
-            date_match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})\s+года', service_text)
-            if date_match:
-                day, month_name, year = date_match.groups()
-                dt, fmt = self.parse_russian_date(f"{day} {month_name} {year}")
-                if dt:
-                    self.date_passed = dt.strftime('%d.%m.%Y')
-                    self.date_format = fmt
-        npa_head = ''
-        while i < len(all_tags):
-            tag = all_tags[i]
-            if not hasattr(tag, 'name'):
-                i += 1
-                continue
-            text = self.extract_text(tag).strip()
-            if not text:
-                i += 1
-                continue
-            is_centered = self.is_centered_tag(tag)
-            if not is_centered and tag.name == 'p' and tag.get('style'):
-                style = tag.get('style', '').lower()
-                if 'text-align: center' in style or 'text-align:center' in style:
-                    is_centered = True
-            if is_centered:
-                cleaned = re.sub(r'\s+', ' ', text).strip()
-                upper_cleaned = cleaned.upper()
-                is_service = False
-                is_structural = False
-                if (self._section_regex.match(cleaned) or
-                    self._chapter_regex.match(cleaned) or
-                    self._article_regex.match(cleaned) or
-                    self._appendix_regex.match(cleaned)):
-                    is_structural = True
-                if len(cleaned) < 80:
-                    if re.search(r'П\s*О\s*С\s*Т\s*А\s*Н\s*О\s*В\s*Л\s*Е\s*Н\s*И\s*Е', upper_cleaned):
-                        is_service = True
-                    elif re.search(r'П\s*О\s*С\s*Т\s*А\s*Н\s*О\s*В\s*Л\s*Я\s*Е\s*Т', upper_cleaned):
-                        is_service = True
-                    elif re.search(r'СОЗЫВ|СЕССИ[ИЯ]', upper_cleaned):
-                        is_service = True
-                    elif len(cleaned) < 20 and re.search(r'№\s*\d+', cleaned):
-                        is_service = True
-                    elif re.search(r'СЕВАСТОПОЛЬ', upper_cleaned) and len(cleaned) < 30:
-                        is_service = True
-                if not is_service and not is_structural:
-                    npa_head = cleaned
-                    i += 1
-                    break
-                elif is_structural:
-                    break
-                else:
-                    i += 1
-                    continue
-            else:
-                i += 1
-        self.doc_title = re.sub(r'\s+', ' ', npa_head).strip() if npa_head else ''
-        preamble_parts = []
-        while i < len(all_tags):
-            tag = all_tags[i]
-            if not hasattr(tag, 'name'):
-                i += 1
-                continue
-            text = self.extract_text(tag).strip()
-            if not text:
-                i += 1
-                continue
-            if re.search(r'П\s*О\s*С\s*Т\s*А\s*Н\s*О\s*В\s*Л\s*Я\s*Е\s*Т', text, re.IGNORECASE):
-                i += 1
-                break
-            if not self.is_centered_tag(tag):
-                preamble_parts.append(str(tag))
-            i += 1
-        if preamble_parts and not self.preamble_added:
-            preamble_html = ''.join(preamble_parts)
-            self.add_preamble_item(preamble_html)
-        self.regulation_main_start_index = i
-        sig_info = self._find_main_chairman_signature(all_tags)
-        if sig_info:
-            signature_tags, start_idx, end_idx, self.date_signed, self.governor_post_html, self.governor_name = sig_info
-            self.signature_start = start_idx
-            self.signature_end = end_idx
-            self.signature_tags = [str(tag) for tag in signature_tags]
-
-    def _extract_metadata_from_table(self):
-        table = self.soup.find('table', recursive=True)
-        if not table:
-            return False, 0
-        texts = [self.extract_text(cell).strip() for cell in table.find_all(['td', 'th']) if self.extract_text(cell).strip()]
-        if not texts:
-            return False, 0
-        full_text = ' '.join(texts)
-        if not re.search(r'ЗАКОНОДАТЕЛЬНОЕ\s+СОБРАНИЕ', full_text, re.I) or not re.search(r'П\s*О\s*С\s*Т\s*А\s*Н\s*О\s*В\s*Л\s*Е\s*Н\s*И\s*Е', full_text, re.I):
-            return False, 0
-        term_match = re.search(r'(\b[IVXLCDM]+\b)\s+СОЗЫВ', full_text, re.I)
-        if term_match:
-            self.term_number = term_match.group(1).upper()
-        session_match = re.search(r'(\b[IVXLCDM]+\b)\s+СЕССИ[ИЯ]', full_text, re.I)
-        if session_match:
-            self.session_number = session_match.group(1).upper()
-        num_match = re.search(r'№\s*(\d+(?:\s*[—–-]\s*\w+)?)', full_text)
-        if num_match:
-            self.npa_number = num_match.group(1)
-        date_match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})\s+года', full_text, re.I)
-        if date_match:
-            day, month_name, year = date_match.groups()
-            dt, fmt = self.parse_russian_date(f"{day} {month_name} {year}")
-            if dt:
-                self.date_passed = dt.strftime('%d.%m.%Y')
-                self.date_format = fmt
-        all_tags = self.soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'table'])
-        for idx, tag in enumerate(all_tags):
-            if tag.name == 'table' and tag == table:
-                return True, idx + 1
-        return True, 0
-
-    def _find_main_chairman_signature(self, all_tags):
-        postanov_index = -1
-        for idx, tag in enumerate(all_tags):
-            if not hasattr(tag, 'name'):
-                continue
-            text = self.extract_text(tag).strip().upper()
-            text_compact = re.sub(r'\s+', '', text)
-            if 'ПОСТАНОВЛЯЕТ' in text_compact:
-                postanov_index = idx
-                break
-        if postanov_index == -1:
-            sig_info = self._find_chairman_signature_in_range(all_tags, max(0, len(all_tags)-30), len(all_tags))
-        else:
-            appendix_index = -1
-            for idx in range(postanov_index + 1, len(all_tags)):
-                tag = all_tags[idx]
-                if not hasattr(tag, 'name'):
-                    continue
-                text = self.extract_text(tag).strip()
-                if text.lower().startswith('приложение'):
-                    appendix_index = idx
-                    break
-            if appendix_index == -1:
-                search_start = max(0, len(all_tags) - 30)
-                sig_info = self._find_chairman_signature_in_range(all_tags, search_start, len(all_tags))
-            else:
-                sig_info = self._find_chairman_signature_in_range(all_tags, postanov_index + 1, appendix_index)
-        if sig_info:
-            start_idx, end_idx, date_signed, post_html, name = sig_info
-            signature_tags = all_tags[start_idx:end_idx+1]
-            return signature_tags, start_idx, end_idx, date_signed, post_html, name
-        return None
-
-    def _find_chairman_signature_in_range(self, all_tags, start_idx, end_idx):
-        patterns = [
-            r'Председател[ья]?',
-            r'И\.?\s*О\.?\s+Председателя',
-            r'и\.?\s*о\.?\s+председателя',
-            r'Исполняющий\s+обязанности\s+Председателя',
-        ]
-        title_re = re.compile('|'.join(patterns), re.IGNORECASE | re.UNICODE)
-        sig_idx = -1
-        for idx in range(end_idx - 1, start_idx - 1, -1):
-            tag = all_tags[idx]
-            if not hasattr(tag, 'name'):
-                continue
-            text = self.extract_text(tag).strip()
-            if title_re.search(text):
-                sig_idx = idx
-                break
-        if sig_idx == -1:
-            return None
-        collected_text = ""
-        last_idx = sig_idx
-        date_signed = ""
-        MAX_TAGS = 20
-        for j in range(sig_idx, min(sig_idx + MAX_TAGS, end_idx)):
-            tag = all_tags[j]
-            if not hasattr(tag, 'name'):
-                continue
-            text = self.extract_text(tag).strip()
-            if not text:
-                continue
-            collected_text += " " + text if collected_text else text
-            last_idx = j
-            if not date_signed:
-                date_match = re.search(r'(\d{1,2})\s+([а-яё]+)\s+(\d{4})\s+года', collected_text, re.IGNORECASE)
-                if date_match:
-                    day, month_name, year = date_match.groups()
-                    dt, fmt = self.parse_russian_date(f"{day} {month_name} {year}")
-                    if dt:
-                        date_signed = dt.strftime('%d.%m.%Y')
-        name_pattern = re.compile(r'([А-Я]\.\s*[А-Я]\.\s*[А-Я][а-я]+(?:-[А-Я][а-я]+)?)', re.UNICODE)
-        post_text = ""
-        name_text = ""
-        match = name_pattern.search(collected_text)
-        if match:
-            name_text = match.group(1)
-            post_text = collected_text[:match.start()].strip()
-        else:
-            words = collected_text.split()
-            if len(words) >= 2:
-                for i in range(len(words)-2):
-                    if re.match(r'[А-Я]\.', words[i]) and re.match(r'[А-Я]\.', words[i+1]):
-                        name_text = words[i] + ' ' + words[i+1] + ' ' + words[i+2]
-                        post_text = collected_text[:collected_text.find(name_text)].strip()
-                        break
-                if not name_text:
-                    name_text = words[-1] if len(words[-1]) > 1 else words[-2] + ' ' + words[-1]
-                    post_text = collected_text.replace(name_text, '').strip()
-            else:
-                post_text = collected_text.strip()
-                name_text = ""
-        post_text = re.sub(r'\s+', ' ', post_text).strip()
-        name_text = re.sub(r'\s+', ' ', name_text).strip()
-        return (sig_idx, last_idx, date_signed, post_text, name_text)
-
-    def find_governor_signature(self, all_tags, start_index):
-        governor_patterns = [
-            r'Губернатор',
-            r'Временно\s+исполняющий\s+обязанности',
-            r'И\.?\s*О\.?\s+Губернатора',
-        ]
-        governor_re = re.compile('|'.join(governor_patterns), re.IGNORECASE)
-        date_re = re.compile(r'(\d{1,2})\s+([а-яё]+)\s+(\d{4})\s+года', re.IGNORECASE)
-        num_re = re.compile(r'№\s*(\d+(?:\s*[—–-]\s*\w+)?)', re.IGNORECASE)
-
-        for idx in range(len(all_tags) - 1, -1, -1):
-            tag = all_tags[idx]
-            if not hasattr(tag, 'name'):
-                continue
-            text = self.extract_text(tag).strip()
-            if not text:
-                continue
-            if text.lower().startswith('приложение'):
-                continue
-            if not governor_re.search(text):
-                continue
-
-            collected_parts = [text]
-            last_idx = idx
-            signature_tags = [tag]
-
-            j = idx + 1
-            while j < len(all_tags):
-                next_tag = all_tags[j]
-                if not hasattr(next_tag, 'name'):
-                    j += 1
-                    continue
-                next_text = self.extract_text(next_tag).strip()
-                if not next_text:
-                    j += 1
-                    continue
-                if next_text.lower().startswith('приложение'):
-                    break
-                candidate = self.parse_element_candidate(next_text, next_tag)
-                if candidate and candidate.get('type') in ('appendix', 'chapter', 'section', 'article'):
-                    break
-                collected_parts.append(next_text)
-                signature_tags.append(next_tag)
-                last_idx = j
-                j += 1
-                if len(collected_parts) >= 5:
-                    break
-
-            collected_text = ' '.join(collected_parts)
-
-            if not date_re.search(collected_text) or not num_re.search(collected_text):
-                continue
-
-            date_signed = ""
-            m = date_re.search(collected_text)
-            if m:
-                day, month_name, year = m.groups()
-                dt, fmt = self.parse_russian_date(f"{day} {month_name} {year}")
-                if dt:
-                    date_signed = dt.strftime('%d.%m.%Y')
-
-            npa_num = ""
-            m = num_re.search(collected_text)
-            if m:
-                npa_num = m.group(1)
-                self.npa_number = npa_num
-
-            governor_post_html = ""
-            governor_name = ""
-            full_block = collected_text
-
-            name_match = re.search(r'([А-Я]\.\s*[А-Я]\.?\s*[А-Я][а-яё]+(?:-[А-Я][а-яё]+)?)', full_block, re.UNICODE)
-            if name_match:
-                governor_name = name_match.group(1).strip()
-                governor_post_html = full_block[:name_match.start()].strip()
-            else:
-                words = full_block.split()
-                for i in range(len(words) - 2):
-                    if re.match(r'^[А-Я]\.?$', words[i]) and re.match(r'^[А-Я]\.?$', words[i+1]):
-                        governor_name = " ".join(words[i:i+3])
-                        governor_post_html = " ".join(words[:i]).strip()
-                        break
-                if not governor_name and words:
-                    governor_name = words[-1]
-                    governor_post_html = " ".join(words[:-1]).strip()
-
-            governor_post_html = re.sub(r'\s+', ' ', governor_post_html).strip()
-            governor_name = re.sub(r'\s+', ' ', governor_name).strip()
-
-            if governor_post_html and governor_name and date_signed and npa_num:
-                self.logger.info(f"Подпись найдена: должность={governor_post_html}, имя={governor_name}, дата={date_signed}, номер={npa_num}")
-                return (idx, last_idx, date_signed, governor_post_html, governor_name)
-
-        for idx in range(len(all_tags)-1, max(0, len(all_tags)-40), -1):
-            tag = all_tags[idx]
-            text = self.extract_text(tag).strip()
-            if not text:
-                continue
-            if "Губернатор" in text or "Развожаев" in text:
-                collected_parts = []
-                for j in range(idx, min(idx+6, len(all_tags))):
-                    if j < len(all_tags):
-                        collected_parts.append(self.extract_text(all_tags[j]))
-                full_block = " ".join(collected_parts)
-                num_match = re.search(r'№\s*(\d+-\w*)', full_block)
-                if num_match:
-                    self.npa_number = num_match.group(1)
-                date_match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})\s+года', full_block)
-                date_signed = ""
-                if date_match:
-                    day, month_name, year = date_match.groups()
-                    dt, fmt = self.parse_russian_date(f"{day} {month_name} {year}")
-                    if dt:
-                        date_signed = dt.strftime('%d.%m.%Y')
-                if "Развожаев" in full_block:
-                    governor_name = "М.В. Развожаев"
-                    governor_post_html = "Губернатор города Севастополя"
-                    self.logger.info(f"Резервный поиск: должность={governor_post_html}, имя={governor_name}, дата={date_signed}, номер={self.npa_number}")
-                    return (idx, idx+3, date_signed, governor_post_html, governor_name)
-
-        self.errors.append("Подпись Губернатора не найдена")
-        self.logger.warning("Подпись губернатора не обнаружена")
-        return None
-
-    def _log(self, message):
-        if hasattr(self, 'log_queue') and self.log_queue:
-            self.log_queue.put(('log', message, 'INFO'))
-        else:
-            self.logger.info(message)
-
-    def _is_signature_start(self, text, doc_type='law'):
-        if doc_type == 'law':
-            patterns = [r'Губернатор', r'Временно\s+исполняющий\s+обязанности', r'И\.?\s*О\.?\s+Губернатора']
-        else:
-            patterns = [r'Председатель', r'И\.?\s*О\.?\s+Председателя', r'Исполняющий\s+обязанности\s+Председателя']
-        combined = '|'.join(patterns)
-        return re.search(combined, text, re.IGNORECASE) is not None
-
-    def _skip_signature_block(self, all_tags, current_index):
-        if self.quote_level > 0:
-            return current_index
-        if self.signature_start is not None and self.signature_end is not None:
-            if current_index == self.signature_start:
-                return self.signature_end + 1
-        return current_index
-
-    def parse_russian_date(self, date_str):
-        months = {
-            'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4, 'мая': 5, 'июня': 6,
-            'июля': 7, 'августа': 8, 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12
-        }
-        match = re.search(r'(\d{1,2})\s+([а-я]+)\s+(\d{4})', date_str, re.IGNORECASE)
-        if not match:
-            return None, 1
-        day_str, month_name, year_str = match.groups()
-        day = int(day_str)
-        month = months.get(month_name.lower())
-        year = int(year_str)
-        if not month:
-            return None, 1
-        try:
-            dt = datetime(year, month, day)
-            fmt = 0 if len(day_str) == 2 and day_str.startswith('0') else 1
-            return dt, fmt
-        except Exception:
-            return None, 1
-
-    def normalize_text(self, text):
-        if not text:
-            return ""
-        text = re.sub(r'\s+', ' ', text)
-        text = re.sub(r'\s+([,.!?;:])', r'\1', text)
-        return text.strip()
-
     def determine_numbering_type(self, candidate):
         if not isinstance(candidate, dict):
             return None
@@ -1699,107 +1099,10 @@ class NpaToJsonGenerator:
         return None
 
     def _ask_user_ambiguity(self, candidate, adjacent, change_info=None, target_element_id=None, source_revision=None):
-        if self.answer_queue is None:
-            print("\n--- Неоднозначная структура ---")
-            print(f"Изменение: {change_info if change_info else 'неизвестно'}")
-            print(f"Целевой элемент: {target_element_id if target_element_id else 'неизвестен'}")
-            print(f"Источник: revision_number = {source_revision if source_revision else 'не указан'}")
-            print(f"Предыдущий элемент: {adjacent.get('full_text', '')[:100]}")
-            print(f"Текущий элемент: {candidate.get('full_text', '')[:100]}")
-            print("Полный HTML текущего кандидата:")
-            print(candidate.get('original_html', '')[:500] + ("..." if len(candidate.get('original_html', '')) > 500 else ""))
-            while True:
-                ans = input("Дочерний (c) / Тот же уровень (s) / Пропустить (p) / Исправить HTML (e): ").strip().lower()
-                if ans in ('c', 'д', 'child'):
-                    level = adjacent['level'] + 1
-                    elem_type = 'subpoint' if adjacent['type'] == 'point' else 'point'
-                    return 'child', level, elem_type
-                elif ans in ('s', 'т', 'sibling'):
-                    return 'sibling', adjacent['level'], adjacent['type']
-                elif ans in ('p', 'skip'):
-                    return 'skip', None, None
-                elif ans in ('e', 'edit'):
-                    new_html = input("Введите исправленный HTML (или оставьте пустым для отмены): ").strip()
-                    if new_html:
-                        candidate['original_html'] = new_html
-                        candidate['full_text'] = self.extract_text(BeautifulSoup(new_html, 'html.parser'))
-                        print("HTML обновлён. Повторите выбор.")
-                    else:
-                        print("Изменение отменено.")
-                        return 'skip', None, None
-                else:
-                    print("Введите 'c' (дочерний), 's' (тот же уровень), 'p' (пропустить) или 'e' (исправить HTML).")
-        else:
-            question = {
-                'type': 'question',
-                'candidate': candidate,
-                'adjacent': adjacent,
-                'candidate_text': candidate.get('full_text', ''),
-                'adjacent_text': adjacent.get('full_text', ''),
-                'change_info': change_info,
-                'target_element_id': target_element_id,
-                'source_revision': source_revision,
-                'full_html': candidate.get('original_html', ''),
-            }
-            question['question_id'] = str(uuid.uuid4())
-            self.log_queue.put(question)
-            while True:
-                if self.stop_event and self.stop_event.is_set():
-                    raise Exception("Processing stopped by user")
-                try:
-                    answer = self.answer_queue.get(timeout=0.5)
-                    if answer.get('question_id') == question['question_id']:
-                        relation = answer.get('relation')
-                        if relation == 'child':
-                            level = adjacent['level'] + 1
-                            elem_type = 'subpoint' if adjacent['type'] == 'point' else 'point'
-                            return 'child', level, elem_type
-                        elif relation == 'sibling':
-                            return 'sibling', adjacent['level'], adjacent['type']
-                        elif relation == 'skip':
-                            return 'skip', None, None
-                        elif relation == 'edit':
-                            new_html = answer.get('new_html')
-                            if new_html:
-                                candidate['original_html'] = new_html
-                                candidate['full_text'] = self.extract_text(BeautifulSoup(new_html, 'html.parser'))
-                                return self._ask_user_ambiguity(candidate, adjacent, change_info, target_element_id, source_revision)
-                            else:
-                                return 'skip', None, None
-                except queue.Empty:
-                    continue
+        return 'sibling', adjacent['level'], adjacent['type']
 
     def _ask_user_appendix_title(self, appendix_title):
-        if self.answer_queue is None:
-            while True:
-                print(f"\n--- Найден заголовок приложения ---")
-                print(f"Текст: {appendix_title}")
-                ans = input("Считать этот текст заголовком приложения? (y/n): ").strip().lower()
-                if ans in ('y', 'д', 'yes', 'да'):
-                    return True
-                elif ans in ('n', 'н', 'no', 'нет'):
-                    return False
-                else:
-                    print("Пожалуйста, введите 'y' (да) или 'n' (нет).")
-
-        question = {
-            'type': 'question_appendix_title',
-            'appendix_title': appendix_title,
-        }
-        question['question_id'] = str(uuid.uuid4())
-
-        if self.log_queue:
-            self.log_queue.put(question)
-
-        while True:
-            if self.stop_event and self.stop_event.is_set():
-                raise Exception("Processing stopped by user")
-            try:
-                answer = self.answer_queue.get(timeout=0.5)
-                if answer.get('question_id') == question['question_id']:
-                    return answer.get('has_title', True)
-            except queue.Empty:
-                continue
+        return True
 
     def build_element_id(self, element_type, number=None, parent_items=None):
         prefix = str(self.document_id) if self.document_id is not None else 'toc'
@@ -2181,57 +1484,6 @@ class NpaToJsonGenerator:
         if title.startswith('('):
             title = re.sub(r'^\([^)]*\)\s*', '', title)
         return title, skip_count, title_tags
-
-    def find_and_add_preamble_for_law(self, all_tags, start_index):
-        if self.preamble_added:
-            return -1
-        preamble_html = []
-        last_idx = -1
-        i = start_index
-        all_tags_filtered = self._filter_out_table_children(all_tags)
-        while i < len(all_tags_filtered):
-            tag = all_tags_filtered[i]
-            if not hasattr(tag, 'name'):
-                i += 1
-                continue
-            text = self.extract_text(tag).strip()
-            if not text:
-                i += 1
-                continue
-            if 'принят законодательным собранием' in text.lower():
-                i += 1
-                continue
-            candidate = self.parse_element_candidate(text, tag)
-            if candidate and candidate.get('type') in ('chapter', 'section', 'article', 'appendix', 'nested_appendix'):
-                break
-            preamble_html.append(str(tag))
-            last_idx = i
-            i += 1
-        if preamble_html:
-            self.add_preamble_item(''.join(preamble_html))
-            return last_idx
-        return -1
-
-    def add_preamble_item(self, original_html):
-        if self.preamble_added:
-            return
-        anchor = self.build_element_id('preamble')
-        item = {
-            'id': anchor,
-            'type': 'preamble',
-            'number': '',
-            'display_text': 'Преамбула',
-            'full_text': '',
-            'title': '',
-            'level': 1,
-            'children': [],
-            'parent_id': None,
-            'original_html': original_html,
-            'collected_content': [],
-            'head_revisions': []
-        }
-        self.toc_items.append(item)
-        self.preamble_added = True
 
     def _process_structural_candidate_with_enumeration(self, candidate):
         if self.fragment_mode:
@@ -3036,293 +2288,22 @@ class NpaToJsonGenerator:
         return html_str
 
     def generate_toc(self):
+        """Generate table of contents from fragment HTML.
+
+        Only fragment mode is supported. Full-document parsing has been removed.
+        """
         try:
             self.used_ids.clear()
-            if self.fragment_mode and self.fragment_element_id:
-                single_item = self.process_fragment(self.original_html, self.fragment_element_id)
-                if single_item:
-                    if self.root_number is not None and not single_item.get('item_number'):
-                        single_item['item_number'] = self.root_number
-                    if self.root_type is not None:
-                        single_item['item_type'] = self.root_type
-                    return [single_item], self.ambiguous_elements
-                return [], []
-            self.process_structured_elements_new()
-            self._clean_appendix_signatures(self.toc_items)
-            self.toc_items, _ = self.convert_to_new_format(self.toc_items, 1)
-            if self.doc_type == 'regulation' and not self.fragment_mode:
-                missing = []
-                if not self.term_number:
-                    missing.append("номер созыва (term_number)")
-                if not self.session_number:
-                    missing.append("номер сессии (session_number)")
-                if not self.npa_number:
-                    missing.append("номер НПА (npa_number)")
-                if not self.date_passed:
-                    missing.append("дата принятия (date_passed)")
-                if not self.governor_post_html:
-                    missing.append("должность председателя (governor_post_html)")
-                if not self.governor_name:
-                    missing.append("ФИО председателя (governor_name)")
-                if missing:
-                    error_msg = f"Отсутствуют обязательные параметры для постановления: {', '.join(missing)}"
-                    self.errors.append(error_msg)
-                    raise Exception(error_msg)
-            elif self.doc_type == 'law' and not self.fragment_mode:
-                missing = []
-                if not self.npa_number:
-                    missing.append("номер НПА (npa_number)")
-                if not self.date_signed:
-                    missing.append("дата подписания (date_signed)")
-                if not self.governor_post_html:
-                    missing.append("должность губернатора (governor_post_html)")
-                if not self.governor_name:
-                    missing.append("ФИО губернатора (governor_name)")
-                if missing:
-                    error_msg = f"Отсутствуют обязательные параметры для закона: {', '.join(missing)}"
-                    self.errors.append(error_msg)
-                    raise Exception(error_msg)
-            if self.root_number is not None and self.toc_items:
-                self.toc_items[0]['item_number'] = str(self.root_number).rstrip('.')
-            if self.root_type is not None and self.toc_items:
-                self.toc_items[0]['item_type'] = self.root_type
-            return self.toc_items, self.ambiguous_elements
+            single_item = self.process_fragment(self.original_html, self.fragment_element_id)
+            if single_item:
+                if self.root_number is not None and not single_item.get('item_number'):
+                    single_item['item_number'] = self.root_number
+                if self.root_type is not None:
+                    single_item['item_type'] = self.root_type
+                return [single_item], self.ambiguous_elements
+            return [], []
         except Exception as e:
-            self.errors.append(f"Ошибка при генерации TOC: {str(e)}")
+            self.errors.append('\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u0438 \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u0438 TOC: ' + str(e))
             raise
 
-    def _clean_appendix_signatures(self, items):
-        if items is None:
-            return
-        for item in items:
-            self._remove_signature_from_item(item)
-            if item.get('children'):
-                self._clean_appendix_signatures(item['children'])
-
-    def _remove_signature_from_item(self, item):
-        if item.get('collected_content'):
-            full_html = ''.join(item['collected_content'])
-            soup = BeautifulSoup(full_html, 'html.parser')
-            all_blocks = soup.find_all(['p', 'div', 'table'])
-            if len(all_blocks) < 2:
-                return
-            sig_start_idx = -1
-            for idx in range(len(all_blocks) - 1, max(-1, len(all_blocks) - 6), -1):
-                block = all_blocks[idx]
-                text = self.extract_text(block).strip()
-                has_title = re.search(r'Председател[ья]|Губернатор|И\.?\s*О\.?\s+', text, re.IGNORECASE)
-                has_initials = re.search(r'[А-Я]\.\s*[А-Я]\.\s*[А-Я][а-яё]+', text, re.UNICODE)
-                has_date = re.search(r'\d{1,2}\s+[а-я]+\s+\d{4}', text, re.IGNORECASE)
-                if has_title and has_initials and not re.match(r'^\d+', text):
-                    sig_start_idx = idx
-                    break
-            if sig_start_idx != -1:
-                blocks_to_keep = all_blocks[:sig_start_idx]
-                new_soup = BeautifulSoup('', 'html.parser')
-                for b in blocks_to_keep:
-                    new_soup.append(b)
-                item['collected_content'] = [str(new_soup)] if str(new_soup).strip() else []
-                if not item['collected_content'] and 'collected_content' in item:
-                    del item['collected_content']
-        if item.get('post_children_content'):
-            full_post = ''.join(item['post_children_content'])
-            soup = BeautifulSoup(full_post, 'html.parser')
-            all_blocks = soup.find_all(['p', 'div', 'table'])
-            if len(all_blocks) < 2:
-                return
-
-    def process_structured_elements_new(self):
-        all_tags = self.soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'table', 'span'])
-        all_tags = [tag for tag in all_tags if not (tag.name == 'span' and tag.parent and tag.parent.name == 'p')]
-        all_tags = self._filter_out_table_children(all_tags)
-        if not all_tags:
-            if self.soup.body:
-                all_tags = list(self.soup.body.children)
-            else:
-                all_tags = list(self.soup.children)
-            all_tags = [tag for tag in all_tags if hasattr(tag, 'name')]
-
-        self.all_tags = all_tags
-        if self.doc_type == 'law':
-            start = self.law_end_index + 1 if self.law_end_index != -1 else 0
-            last_preamble = self.find_and_add_preamble_for_law(all_tags, start)
-            i = start if last_preamble == -1 else last_preamble + 1
-        else:
-            i = self.regulation_main_start_index if self.regulation_main_start_index > 0 else 0
-
-        self.in_appendix = False
-        self.current_appendix = None
-        self.appendix_started = False
-        self.skip_until_next_appendix = False
-        self.current_appendix_to_skip = None
-        self.quote_level = 0
-        self.enum_stack = []
-        self.pending_parent_for_next_content = None
-        self._pending_enum_parent = None
-
-        last_was_structural_word = False
-
-        while i < len(all_tags):
-            if self.skip_until_next_appendix:
-                i += 1
-                continue
-
-            i = self._skip_signature_block(all_tags, i)
-            if i >= len(all_tags):
-                break
-            tag = all_tags[i]
-
-            if tag.name == 'div' and tag.get('class') and 'double-scroll' in tag.get('class'):
-                table_inside = tag.find('table')
-                if table_inside:
-                    tag = table_inside
-                else:
-                    i += 1
-                    continue
-
-            if self.skip_until_next_appendix:
-                text = self.extract_text(tag).strip()
-                has_img = tag.find('img') is not None
-                if text or has_img:
-                    candidate = self.parse_element_candidate(text, tag)
-                    if candidate and candidate['type'] == 'appendix':
-                        self.skip_until_next_appendix = False
-                        self.current_appendix_to_skip = None
-                    else:
-                        i += 1
-                        continue
-
-            if not hasattr(tag, 'name'):
-                i += 1
-                continue
-
-            if tag.name == 'table':
-                saved_quote_level = self.quote_level
-                self.quote_level = 0
-                if self._process_table(tag, i, all_tags):
-                    if saved_quote_level > 0:
-                        if tag.get('border') == '0':
-                            self.quote_level = 0
-                        else:
-                            has_structural = False
-                            for row in tag.find_all('tr')[:20]:
-                                if self._is_structural_table_row(row):
-                                    has_structural = True
-                                    break
-                            if not has_structural:
-                                self.quote_level = 0
-                            else:
-                                self.quote_level = saved_quote_level
-                    i += 1
-                    continue
-
-            text = self.extract_text(tag).strip()
-            has_img = tag.find('img') is not None
-            has_content = bool(text) or has_img or bool(tag.find_all(['img', 'table', 'figure']))
-            if not has_content:
-                i += 1
-                continue
-
-            if has_img:
-                if self.stack:
-                    self.stack[-1].setdefault('collected_content', []).append(str(tag))
-                i += 1
-                continue
-
-            opens, closes, net, starts_with_open, legal_close = self._para_quote_state(text)
-            if self.quote_level > 0 or starts_with_open:
-                self._process_nonstructural_tag_with_enumeration(tag, text, force_nonstructural=True)
-                self.quote_level = max(0, self.quote_level + net)
-                if legal_close and self.quote_level <= 0:
-                    self.quote_level = 0
-                i += 1
-                continue
-
-            candidate = self.parse_element_candidate(text, tag)
-            if candidate:
-                is_structural_word = candidate['type'] in ('article', 'chapter', 'section', 'appendix', 'nested_appendix')
-                if is_structural_word and last_was_structural_word:
-                    self._process_nonstructural_tag_with_enumeration(tag, text, force_nonstructural=True)
-                    last_was_structural_word = False
-                else:
-                    if candidate['type'] == 'appendix':
-                        next_tags = all_tags[i+1:i+4] if i+1 < len(all_tags) else []
-                        appendix_title, skip_count, title_tags = self.find_appendix_title(all_tags, i + 1)
-
-                        has_title = True
-                        if appendix_title:
-                            has_title = self._ask_user_appendix_title(appendix_title)
-                            if not has_title:
-                                appendix_title = ""
-
-                        candidate['full_text'] = text
-                        candidate['title'] = appendix_title
-                        candidate['prefix'] = text
-                        is_main_appendix = self.is_main_appendix(text, next_tags)
-                        is_nested_appendix = self.is_nested_appendix(text, next_tags)
-                        candidate['is_main_appendix'] = is_main_appendix
-                        candidate['is_nested_appendix'] = is_nested_appendix
-                        appendix_number = candidate.get('number', '')
-                        if is_main_appendix and appendix_number in self.appendix_processing_decisions:
-                            process_internally = self.appendix_processing_decisions[appendix_number]
-                            candidate['skip_internals'] = not process_internally
-                            candidate['needs_user_decision'] = False
-                        elif is_main_appendix and appendix_number not in self.appendix_processing_decisions:
-                            candidate['skip_internals'] = False
-                            candidate['needs_user_decision'] = False
-                        else:
-                            candidate['skip_internals'] = True
-                            candidate['needs_user_decision'] = False
-
-                        self.resolve_hierarchy_new(candidate)
-
-                        if candidate.get('skip_internals', False):
-                            if not has_title:
-                                if self.stack:
-                                    for t_tag in title_tags:
-                                        self.stack[-1].setdefault('collected_content', []).append(str(t_tag))
-                            self.skip_until_next_appendix = True
-                            self.current_appendix_to_skip = appendix_number
-                            j = i + 1
-                            extra_skip = skip_count if has_title else 0
-                            while j < len(all_tags) and extra_skip > 0:
-                                j += 1
-                                extra_skip -= 1
-                            while j < len(all_tags):
-                                next_tag = all_tags[j]
-                                if not hasattr(next_tag, 'name'):
-                                    j += 1
-                                    continue
-                                next_text = self.extract_text(next_tag).strip()
-                                next_candidate = self.parse_element_candidate(next_text, next_tag)
-                                if next_candidate and next_candidate['type'] == 'appendix':
-                                    break
-                                if re.search(r'к\s+(?:Закону|Постановлению|закону|постановлению)', next_text, re.IGNORECASE):
-                                    j += 1
-                                    continue
-                                break
-                            i = j
-                            continue
-                        else:
-                            if not has_title:
-                                skip_count = 0
-                            i += 1 + skip_count
-                            continue
-                    else:
-                        self._process_structural_candidate_with_enumeration(candidate)
-                    last_was_structural_word = is_structural_word
-            else:
-                self._process_nonstructural_tag_with_enumeration(tag, text)
-                last_was_structural_word = False
-
-            i += 1
-
-        if self.quote_level > 0:
-            self.logger.warning(f"Не закрыты кавычки, уровень {self.quote_level}")
-
-def main():
-    if sys.version_info < (3, 6):
-        print("Требуется Python 3.6 или выше")
-        sys.exit(1)
-    print("Запустите html_to_json через скрипт в scripts/")
 

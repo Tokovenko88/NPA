@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 
@@ -16,16 +17,8 @@ def run_pipeline():
     pipeline_main()
 
 
-def run_html_to_json_app():
-    from npa_processor.core.html_parser import main
-    main()
-
-
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--html-to-json":
-        run_html_to_json_app()
-    else:
-        run_pipeline()
+    run_pipeline()
 
 
 if __name__ == "__main__":
