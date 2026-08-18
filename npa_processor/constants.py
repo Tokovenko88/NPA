@@ -40,16 +40,21 @@ def _resolve_prompt_path(filename):
     for path in candidates:
         if os.path.exists(path):
             return path
-    raise FileNotFoundError(f"Prompt file not found: {filename} (checked {candidates})")
+    return None
 
 
 def load_prompt_from_file(filename):
     path = _resolve_prompt_path(filename)
+    if path is None:
+        return ""
     with open(path, 'r', encoding='utf-8') as f:
         return f.read()
 
 
-PROMPT_1 = load_prompt_from_file('prompt_1.txt')
-PROMPT_2 = load_prompt_from_file('prompt_2.txt')
-PROMPT_3 = load_prompt_from_file('prompt_3.txt')
-PROMPT_4 = load_prompt_from_file('prompt_4.txt')
+_prompt_cache = {}
+
+
+def get_prompt(name):
+    if name not in _prompt_cache:
+        _prompt_cache[name] = load_prompt_from_file(f'{name}.txt')
+    return _prompt_cache[name]

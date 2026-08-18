@@ -9,7 +9,6 @@ import re
 from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GUI_STATE_PATH = os.path.join(BASE_DIR, '.npa_gui_state.json')
 ANSWERS_DIR = os.path.join(BASE_DIR, 'work', 'answers')
 RESULT_DIR = os.path.join(BASE_DIR, 'work', 'results')
 
@@ -20,17 +19,6 @@ def load_json(path):
 def save_json(path, data):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-
-def load_gui_state():
-    if os.path.exists(GUI_STATE_PATH):
-        try:
-            return load_json(GUI_STATE_PATH)
-        except Exception:
-            return {}
-    return {}
-
-def save_gui_state(state):
-    save_json(GUI_STATE_PATH, state)
 
 def get_answers_dir():
     if not os.path.exists(ANSWERS_DIR):
@@ -57,7 +45,7 @@ def date_add_days(date_str, days):
 
 def get_active_revision(item):
     for rev in item.get('revisions', []):
-        if rev.get('valid_to') is None:
+        if rev.get('valid_to') in (None, ''):
             return rev
     return item['revisions'][-1] if item['revisions'] else None
 

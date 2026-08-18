@@ -11,6 +11,7 @@ import os
 import json
 import copy
 import re
+import time
 import argparse
 from datetime import datetime, timedelta
 from threading import Event
@@ -1355,7 +1356,6 @@ def main(args=None):
         except PermissionError as e:
             log(f"Error saving (attempt {attempt}/{max_attempts}): {e}")
             if attempt < max_attempts:
-                import time
                 time.sleep(1.5)
             else:
                 errors.append(f"Could not save result file: {e}")
