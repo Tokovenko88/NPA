@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Editor artifacts
+.kilo/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Project specific - NOT stored in git
+# База: incomplete NPA database (JSON laws/resolutions)
+БАЗА/
+
+# Working files
+work/source/
+work/answers/
+work/results/
+work/chain_results/
+
+# Agent runtime data (not instructions or examples)
+learning/
+
+# Temporary working files
+tmp/
+
+# Reports
+scripts/report.md

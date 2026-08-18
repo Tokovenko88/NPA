@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "description": "Characteristic examples for Stage 1: Revocation Analysis",
+    "language": "Russian",
+    "subject": "Sevastopol city laws and Legislative Assembly resolutions",
+    "update_policy": "Add new examples when new valid patterns are discovered. Do not remove existing examples."
+  },
+  "examples": [
+    {
+      "id": "s1_ex_01",
+      "slug": "full_law_revocation",
+      "name": "Полная утрата силы закона",
+      "source_text": "Статья 1. Признать утратившим силу Закон города Севастополя от 01.01.2020 № 100-ЗС «О земельных отношениях».",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 1",
+          "structural_element_for_delete": "law",
+          "valid_from": null
+        }
+      ],
+      "notes": "Прямое указание об утрате силы всего закона. valid_from = null, так как дата не указана."
+    },
+    {
+      "id": "s1_ex_02",
+      "slug": "partial_article_revocation_with_date",
+      "name": "Частичная утрата силы статьи с датой",
+      "source_text": "Статья 2. Статья 5 Закона № 100-ЗС утрачивает силу с 1 марта 2023 года.",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 2",
+          "structural_element_for_delete": "статья 5",
+          "valid_from": "01.03.2023"
+        }
+      ],
+      "notes": "Дата утраты силы явно указана. Преобразуем в DD.MM.YYYY."
+    },
+    {
+      "id": "s1_ex_03",
+      "slug": "revocation_inside_numbered_list",
+      "name": "Утрата силы внутри нумерованного списка",
+      "source_text": "Статья 2. Признать утратившими силу:\n1) Закон № 50-ЗС...;\n2) статью 2 Закона № 100-ЗС...;",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 2 -> пункт 2",
+          "structural_element_for_delete": "статья 2",
+          "valid_from": null
+        }
+      ],
+      "notes": "Указание находится во втором пункте статьи 2. structural_element использует -> как разделитель."
+    },
+    {
+      "id": "s1_ex_04",
+      "slug": "article_range_revocation",
+      "name": "Диапазон статей",
+      "source_text": "Статья 3. Статьи 5, 6 и 7 Закона № 100-ЗС признать утратившими силу.",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 3",
+          "structural_element_for_delete": "статья 5",
+          "valid_from": null
+        },
+        {
+          "structural_element": "статья 3",
+          "structural_element_for_delete": "статья 6",
+          "valid_from": null
+        },
+        {
+          "structural_element": "статья 3",
+          "structural_element_for_delete": "статья 7",
+          "valid_from": null
+        }
+      ],
+      "notes": "Диапазон 'статьи 5, 6 и 7' разбивается на отдельные объекты. Каждый объект имеет свой structural_element_for_delete."
+    },
+    {
+      "id": "s1_ex_05",
+      "slug": "indirect_mention_ignore",
+      "name": "Косвенное упоминание — игнорировать",
+      "source_text": "Статья 2. Признать утратившим силу Закон № 816-ЗС «О внесении изменений в... и статью 3 Закона № 720-ЗС».",
+      "target_law": "720-ЗС",
+      "expected_output": null,
+      "notes": "Статья 3 целевого закона 720-ЗС упоминается только в названии отменяемого закона 816-ЗС. Это НЕ означает утрату силы. Возвращаем null."
+    },
+    {
+      "id": "s1_ex_06",
+      "slug": "partial_article_part_revocation",
+      "name": "Утрата силы части статьи",
+      "source_text": "Статья 4. Часть 3 статьи 7 Закона № 100-ЗС утрачивает силу.",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 4",
+          "structural_element_for_delete": "статья 7 часть 3",
+          "valid_from": null
+        }
+      ],
+      "notes": "Частичная утрата силы. Иерархия сохраняется."
+    },
+    {
+      "id": "s1_ex_07",
+      "slug": "plural_points_revocation_split",
+      "name": "Множественное удаление пунктов",
+      "source_text": "Статья 5. В части 3 статьи 2 Закона № 100-ЗС пункты 3 и 4 признать утратившими силу.",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "structural_element": "статья 5 -> пункт 2",
+          "structural_element_for_delete": "статья 2 часть 3 пункт 3",
+          "valid_from": null
+        },
+        {
+          "structural_element": "статья 5 -> пункт 2",
+          "structural_element_for_delete": "статья 2 часть 3 пункт 4",
+          "valid_from": null
+        }
+      ],
+      "notes": "Пункты 3 и 4 разбиваются на отдельные объекты. structural_element указывает на пункт 2 статьи 5 (где находится указание). structural_element_for_delete указывает на каждый удаляемый пункт."
+    }
+  ]
+}

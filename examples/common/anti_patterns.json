@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "description": "Common anti-patterns and known error patterns for all stages",
+    "language": "Russian (descriptions), English (rules)",
+    "subject": "Sevastopol city laws and Legislative Assembly resolutions",
+    "update_policy": "Add new anti-patterns when discovered. Document the fix for each pattern."
+  },
+  "anti_patterns": [
+    {
+      "id": "ap_01",
+      "slug": "copy_paste_from_source",
+      "name": "Бессмысленное копирование кусков из изменяющего НПА",
+      "symptom": "В результате появляются description, содержащие полный HTML статей/частей из изменяющего НПА. Структура целевого НПА искажается: дети вложены прямо в body родителей.",
+      "cause": "Агент читает изменяющий НПА и переносит его текст в результат, вместо того чтобы применить изменения.",
+      "fix": "На этапе 3 description для change/delete = только целевая инструкция, для new_redaction/add = только номера абзацев. На этапе 5 дети остаются в item_children, в body только child_ref.",
+      "affected_stages": [3, 5]
+    },
+    {
+      "id": "ap_02",
+      "slug": "wrong_type_classification",
+      "name": "Неправильная классификация типа изменения",
+      "symptom": "«исключить» для слов/фраз классифицировано как delete вместо change. «изложить в следующей редакции» для предложения классифицировано как new_redaction вместо change.",
+      "cause": "Несоблюдение порядка проверки в TYPE CLASSIFICATION.",
+      "fix": "Всегда проверяй объект: если это слова/фразы/предложение/строка ячейки → тип change. Если объект — номер целого элемента → может быть delete/new_redaction/add.",
+      "affected_stages": [3]
+    },
+    {
+      "id": "ap_03",
+      "slug": "missing_plural_delete_split",
+      "name": "Пропуск сплиттинга для множественных удалений",
+      "symptom": "«пункты 3 и 4 части 3 исключить» → один объект со structural_element = \"Статья 2 часть 3\" вместо двух отдельных.",
+      "cause": "Игнорирование правила SPLITTING FOR DELETE.",
+      "fix": "При обнаружении множественного числа + список чисел → сразу создавай отдельный объект на каждый номер.",
+      "affected_stages": [3]
+    },
+    {
+      "id": "ap_04",
+      "slug": "bare_npa_number_in_modified_by_id",
+      "name": "Голый номер НПА в modified_by_id",
+      "symptom": "В ревизиях стоит \"modified_by_id\": \"37687\" вместо \"modified_by_id\": \"37687_article_1_point_1\".",
+      "cause": "Агент использует только npa_id верхнего уровня, вместо полного item_id конкретного структурного элемента.",
+      "fix": "modified_by_id = revision_number из объекта изменения этапа 3. ЗАПРЕЩЕНО использовать только номер НПА.",
+      "affected_stages": [5]
+    },
+    {
+      "id": "ap_05",
+      "slug": "highlights_whole_paragraph",
+      "name": "Highlights содержит весь абзац вместо конкретных изменений",
+      "symptom": "В highlights попадает весь текст абзаца с позицией 1-all вместо отдельных фрагментов.",
+      "cause": "Генерация подсветки на уровне целых абзацев вместо предложений и символьных фрагментов.",
+      "fix": "Генерация подсветки ДОЛЖНА быть sentence-level. Для изменённых предложений используй difflib.SequenceMatcher. Никогда не используй 1-all для изменённых абзацев.",
+      "affected_stages": [4, 5]
+    },
+    {
+      "id": "ap_06",
+      "slug": "inlined_children_in_body",
+      "name": "Вложенные дети в body родителя",
+      "symptom": "При new_redaction содержимое детей вкладывается напрямую в body родителя, вместо того чтобы остаться в item_children.",
+      "cause": "Несоблюдение правила сохранения древовидной структуры.",
+      "fix": "При new_redaction children остаются в item_children. В body родителя только paragraph блоки + child_ref на неизменённых детей.",
+      "affected_stages": [5]
+    },
+    {
+      "id": "ap_07",
+      "slug": "missing_highlights",
+      "name": "Пропущенная подсветка (highlights)",
+      "symptom": "Ревизия с mod_type = change не содержит поля highlights.",
+      "cause": "Забыли добавить highlights или не сгенерировали их на этапе 4.",
+      "fix": "Для КАЖДОГО change highlights ОБЯЗАТЕЛЬНЫ. Если stage 4 не сгенерировал highlights, сгенерируй их детерминированно из HTML diff.",
+      "affected_stages": [4, 5]
+    },
+    {
+      "id": "ap_08",
+      "slug": "indirect_mention_as_revocation",
+      "name": "Косвенное упоминание как утрата силы",
+      "symptom": "Статья целевого НПА упоминается в названии отменяемого закона и трактуется как утрата силы.",
+      "cause": "Несоблюдение правила Прямой объект утраты силы.",
+      "fix": "Если НПА или его элементы упоминаются ТОЛЬКО в названии другого отменяемого НПА — это НЕ утрата силы. Строго игнорируйте такие упоминания.",
+      "affected_stages": [1]
+    },
+    {
+      "id": "ap_09",
+      "slug": "wrong_structural_element_format",
+      "name": "Неверный формат structural_element",
+      "symptom": "structural_element = \"части X статьи Y\" (неправильный падеж и порядок) или содержит «предложение», «строка».",
+      "cause": "Несоблюдение правил форматирования structural_element.",
+      "fix": "Именительный падеж. Порядок от высшего к низшему. Запрещено: «предложение», «строка», «ячейка», «графа» в structural_element.",
+      "affected_stages": [1, 2, 3]
+    },
+    {
+      "id": "ap_10",
+      "slug": "duplicate_item_ids",
+      "name": "Дублирование item_id",
+      "symptom": "Два элемента имеют одинаковый item_id.",
+      "cause": "Ошибка при генерации id или копировании элементов.",
+      "fix": "Перед сохранением проверь уникальность item_id. Если дубликат найден → добавь суффикс _double_N.",
+      "affected_stages": [5]
+    }
+  ]
+}

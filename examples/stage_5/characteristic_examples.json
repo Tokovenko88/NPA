@@ -1,0 +1,260 @@
+{
+  "meta": {
+    "description": "Characteristic examples for Stage 5: Apply Changes to JSON",
+    "language": "Russian (NPA content), English (JSON structure)",
+    "subject": "Sevastopol city laws and Legislative Assembly resolutions",
+    "update_policy": "Add new examples when new valid patterns are discovered. Do not remove existing examples."
+  },
+  "examples": [
+    {
+      "id": "s5_ex_01",
+      "slug": "new_redaction_preserve_children",
+      "name": "Применение new_redaction с сохранением детей",
+      "change": {
+        "type": "new_redaction",
+        "structural_element": "Статья 3 часть 1",
+        "modified_by_id": "33699_article_1_point_4",
+        "description": "2-4",
+        "highlights": {
+          "previous_edition": {
+            "difference": [["К отдельным категориям граждан", "1-1"]],
+            "deletion": [],
+            "addition": []
+          },
+          "current_edition": {
+            "difference": [["1. К отдельным категориям граждан", "1-1"]],
+            "deletion": [],
+            "addition": []
+          }
+        }
+      },
+      "old_element": {
+        "item_id": "16012_article_3_part_1",
+        "item_type": "part",
+        "item_number": "1",
+        "item_level": 2,
+        "item_children": [
+          {
+            "item_id": "16012_article_3_part_1_point_1",
+            "item_type": "point",
+            "item_number": "1)",
+            "item_level": 3,
+            "revisions": [
+              {
+                "body": [
+                  {
+                    "type": "paragraph",
+                    "html_text": "<p>являющихся родителями из многодетных семей...</p>",
+                    "order": 1
+                  }
+                ],
+                "valid_to": "14.12.2017"
+              }
+            ]
+          }
+        ],
+        "revisions": [
+          {
+            "body": [
+              {
+                "type": "paragraph",
+                "html_text": "<p>К отдельным категориям граждан...</p>",
+                "order": 1
+              },
+              {
+                "type": "child_ref",
+                "item_id": "16012_article_3_part_1_point_1",
+                "order": 2
+              }
+            ],
+            "valid_to": "14.12.2017"
+          },
+          {
+            "mod_type": "new_redaction",
+            "modified_by_id": "33699_article_1_point_4",
+            "valid_from": "15.12.2017",
+            "body": [
+              {
+                "type": "paragraph",
+                "html_text": "<p class=\"justifyfull\">1. К отдельным категориям граждан...</p>",
+                "order": 1
+              },
+              {
+                "type": "child_ref",
+                "item_id": "16012_article_3_part_1_point_1",
+                "order": 2
+              }
+            ]
+          }
+        ]
+      },
+      "expected_new_revision": {
+        "mod_type": "new_redaction",
+        "modified_by_id": "33699_article_1_point_4",
+        "valid_from": "15.12.2017",
+        "valid_to": "22.10.2018",
+        "body": [
+          {
+            "type": "paragraph",
+            "html_text": "<p class=\"justifyfull\">1. К отдельным категориям граждан...</p>",
+            "order": 1
+          },
+          {
+            "type": "child_ref",
+            "item_id": "16012_article_3_part_1_point_1",
+            "order": 2
+          }
+        ],
+        "highlights": {
+          "previous_edition": {
+            "difference": [["К отдельным категориям граждан", "1-1"]],
+            "deletion": [],
+            "addition": []
+          },
+          "current_edition": {
+            "difference": [["1. К отдельным категориям граждан", "1-1"]],
+            "deletion": [],
+            "addition": []
+          }
+        }
+      },
+      "notes": "При new_redaction элемент с детьми сохраняет детей в item_children. В body нового элемента только paragraph + child_ref на неизменённых детей. Дети НЕ вкладываются напрямую в body."
+    },
+    {
+      "id": "s5_ex_02",
+      "slug": "delete_with_not_valid",
+      "name": "Применение delete с not_valid",
+      "change": {
+        "type": "delete",
+        "structural_element": "Статья 2 часть 3 пункт 3",
+        "modified_by_id": "33699_article_1_point_4",
+        "valid_from": "15.12.2017"
+      },
+      "old_element": {
+        "item_id": "16012_article_2_part_3_point_3",
+        "item_type": "point",
+        "item_number": "3)",
+        "item_level": 4,
+        "revisions": [
+          {
+            "body": [
+              {
+                "type": "paragraph",
+                "html_text": "<p>Старый текст пункта 3...</p>",
+                "order": 1
+              }
+            ],
+            "valid_to": "14.12.2017"
+          }
+        ]
+      },
+      "expected_new_revision": {
+        "mod_type": "delete",
+        "modified_by_id": "33699_article_1_point_4",
+        "valid_from": "15.12.2017",
+        "body": [],
+        "valid_to": null
+      },
+      "expected_old_revision_extra": {
+        "not_valid": "33699_article_1_point_4"
+      },
+      "notes": "При delete старая ревизия получает поле not_valid. Новая ревизия имеет пустой body и mod_type = delete."
+    },
+    {
+      "id": "s5_ex_03",
+      "slug": "add_with_child_ref",
+      "name": "Применение add с child_ref в родителе",
+      "change": {
+        "type": "add",
+        "structural_element": "Статья 3",
+        "new": "пункт 4",
+        "modified_by_id": "46989_article_1_point_1_subpoint_а",
+        "valid_from": "23.10.2018"
+      },
+      "parent_element": {
+        "item_id": "16012_article_3",
+        "item_type": "article",
+        "item_number": "3",
+        "item_level": 1,
+        "item_children": [
+          {
+            "item_id": "16012_article_3_point_1",
+            "item_type": "point",
+            "item_number": "1)",
+            "item_level": 2
+          }
+        ],
+        "revisions": [
+          {
+            "body": [
+              {
+                "type": "child_ref",
+                "item_id": "16012_article_3_point_1",
+                "order": 1
+              }
+            ],
+            "valid_to": "22.10.2018"
+          }
+        ]
+      },
+      "expected_parent_new_revision": {
+        "mod_type": "change",
+        "modified_by_id": "46989_article_1_point_1_subpoint_а",
+        "valid_from": "23.10.2018",
+        "body": [
+          {
+            "type": "child_ref",
+            "item_id": "16012_article_3_point_1",
+            "order": 1
+          },
+          {
+            "type": "child_ref",
+            "item_id": "16012_article_3_point_4",
+            "order": 2
+          }
+        ]
+      },
+      "expected_new_child": {
+        "item_id": "16012_article_3_point_4",
+        "item_type": "point",
+        "item_number": "4)",
+        "item_level": 2,
+        "revisions": [
+          {
+            "mod_type": "add",
+            "modified_by_id": "46989_article_1_point_1_subpoint_а",
+            "valid_from": "23.10.2018",
+            "body": [
+              {
+                "type": "paragraph",
+                "html_text": "<p class=\"justifyfull\">Граждане, имеющих трех и более детей...</p>",
+                "order": 1
+              }
+            ]
+          }
+        ],
+        "item_children": []
+      },
+      "notes": "При add создаётся новый дочерний элемент. Родитель получает новую ревизию с mod_type = change, в body добавляется child_ref на нового ребёнка."
+    },
+    {
+      "id": "s5_ex_04",
+      "slug": "bare_modified_by_id_error",
+      "name": "Голый modified_by_id — запрещено",
+      "bad_change": {
+        "type": "new_redaction",
+        "structural_element": "Статья 3",
+        "modified_by_id": "33699",
+        "valid_from": "15.12.2017"
+      },
+      "error": "modified_by_id_bare",
+      "corrected_change": {
+        "type": "new_redaction",
+        "structural_element": "Статья 3",
+        "modified_by_id": "33699_article_1_point_4",
+        "valid_from": "15.12.2017"
+      },
+      "notes": "КРИТИЧЕСКАЯ ОШИБКА. modified_by_id должен быть полным item_id, а не только номером НПА. Автоисправление: заменить на полный item_id из revision_number изменения."
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+import os
+from npa_processor.config import get_settings
+
+settings = get_settings()
+
+CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
+PROMPTS_DIR = os.path.join(CONFIG_DIR, 'prompts')
+
+DEFAULT_EXTRA_OPTIONS = {
+    "temperature": 0.0,
+    "top_p": 0.1,
+}
+
+TYPE_TO_RUSSIAN = {
+    'article': 'Статья',
+    'part': 'Часть',
+    'point': 'Пункт',
+    'subpoint': 'Подпункт',
+    'chapter': 'Глава',
+    'section': 'Раздел',
+    'appendix': 'Приложение',
+    'paragraph': 'Абзац',
+    'preamble': 'Преамбула',
+    'structured_table': 'Таблица',
+}
+
+PLURAL_TO_SINGULAR = {
+    'части': 'часть',
+    'пункты': 'пункт',
+    'подпункты': 'подпункт',
+    'статьи': 'статья',
+    'главы': 'глава',
+    'разделы': 'раздел',
+    'приложения': 'приложение',
+}
+
+
+def load_prompt_from_file(filename):
+    path = os.path.join(PROMPTS_DIR, filename)
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return ""
+
+
+PROMPT_1 = load_prompt_from_file('prompt_1.txt')
+PROMPT_2 = load_prompt_from_file('prompt_2.txt')
+PROMPT_3 = load_prompt_from_file('prompt_3.txt')
+PROMPT_4 = load_prompt_from_file('prompt_4.txt')

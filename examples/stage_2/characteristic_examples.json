@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "description": "Characteristic examples for Stage 2: Dates and Retroactivity Analysis",
+    "language": "Russian",
+    "subject": "Sevastopol city laws and Legislative Assembly resolutions",
+    "update_policy": "Add new examples when new valid patterns are discovered. Do not remove existing examples."
+  },
+  "examples": [
+    {
+      "id": "s2_ex_01",
+      "slug": "retroactive_multiple_articles",
+      "name": "Ретроактивный clause для нескольких статей",
+      "source_text": "Статья 2\n1. Настоящий Закон вступает в силу со дня его официального опубликования.\n2. Действие положений статей 3, 5 и 7 Закона города Севастополя от 27 июля 2016 года № 269-ЗС «О бюджетном устройстве» распространяется на правоотношения, возникшие с 7 июля 2023 года.",
+      "target_law": "269-ЗС",
+      "expected_output": [
+        {
+          "applies_to": "target_law",
+          "action_type": "retroactive_note",
+          "structural_element": "статья 3",
+          "note_text": "Действие положений статьи 3 распространяется на правоотношения, возникшие с 7 июля 2023 года",
+          "note_valid_from": null
+        },
+        {
+          "applies_to": "target_law",
+          "action_type": "retroactive_note",
+          "structural_element": "статья 5",
+          "note_text": "Действие положений статьи 5 распространяется на правоотношения, возникшие с 7 июля 2023 года",
+          "note_valid_from": null
+        },
+        {
+          "applies_to": "target_law",
+          "action_type": "retroactive_note",
+          "structural_element": "статья 7",
+          "note_text": "Действие положений статьи 7 распространяется на правоотношения, возникшие с 7 июля 2023 года",
+          "note_valid_from": null
+        }
+      ],
+      "notes": "Несколько статей в одном предложении — каждая получает отдельный объект. note_text строится индивидуально для каждой статьи."
+    },
+    {
+      "id": "s2_ex_02",
+      "slug": "mixed_special_date_and_retroactive",
+      "name": "Специальная дата для изменяющего НПА + ретроактивность для приложения",
+      "source_text": "Статья 8\n1. Настоящий Закон вступает в силу со дня его официального опубликования, за исключением абзаца третьего подпункта «б» пункта 2 статьи 3 настоящего Закона.\n2. Абзац третий подпункта «б» пункта 2 статьи 3 настоящего Закона вступает в силу с 1 января 2024 года.\n3. Действие положений приложения 2 к Закону... № 21-ЗС..., приложения к Закону города Севастополя от 23 января 2015 года № 109-ЗС «...» распространяется на правоотношения, действующие на 1 июня 2023 года, в отношении лиц...",
+      "target_law": "109-ЗС",
+      "expected_output": [
+        {
+          "applies_to": "amending_law",
+          "action_type": "special_valid_from",
+          "structural_element": "статья 3 -> пункт 2 -> подпункт б -> абзац 3",
+          "date": "01.01.2024"
+        },
+        {
+          "applies_to": "target_law",
+          "action_type": "retroactive_note",
+          "structural_element": "приложение",
+          "note_text": "Действие положений приложения распространяется на правоотношения, действующие на 1 июня 2023 года, в отношении лиц...",
+          "note_valid_from": null
+        }
+      ],
+      "notes": "Смешанный случай: специальная дата для изменяющего НПА (amending_law) и ретроактивность для целевого (target_law). Приложение без номера."
+    },
+    {
+      "id": "s2_ex_03",
+      "slug": "special_date_for_target_law",
+      "name": "Специальная дата для целевого НПА",
+      "source_text": "Статья 2. Статья 5 Закона № 100-ЗС вступает в силу с 1 марта 2023 года.",
+      "target_law": "100-ЗС",
+      "expected_output": [
+        {
+          "applies_to": "target_law",
+          "action_type": "special_valid_from",
+          "structural_element": "статья 5",
+          "date": "01.03.2023"
+        }
+      ],
+      "notes": "Прямое указание на целевую статью. applies_to = target_law."
+    },
+    {
+      "id": "s2_ex_04",
+      "slug": "no_relevant_info",
+      "name": "Нет релевантной информации",
+      "source_text": "Статья 1. Настоящий Закон вступает в силу со дня его официального опубликования.",
+      "target_law": "100-ЗС",
+      "expected_output": null,
+      "notes": "Общие переходные положения без указаний на целевой НПА. Возвращаем null."
+    }
+  ]
+}

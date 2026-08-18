@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "description": "Characteristic examples for Stage 3: Changes Extraction",
+    "language": "Russian (NPA content), English (structure)",
+    "subject": "Sevastopol city laws and Legislative Assembly resolutions",
+    "update_policy": "Add new examples when new valid patterns are discovered. Do not remove existing examples."
+  },
+  "examples": [
+    {
+      "id": "s3_ex_01",
+      "slug": "word_replacement_change",
+      "name": "Замена слов (change)",
+      "source_fragment": "<p>в наименовании слова «и иных лиц» исключить</p>",
+      "source_article_number": "2",
+      "source_subitems": "1)",
+      "revision_number": "1)",
+      "expected_output": [
+        {
+          "revision_number": "1)",
+          "structural_element": "Наименование",
+          "type": "change",
+          "description": "слова «и иных лиц» исключить"
+        }
+      ],
+      "notes": "Изменение в наименовании всего НПА. Правило A. Тип change, так как объектом являются слова, а не целый элемент."
+    },
+    {
+      "id": "s3_ex_02",
+      "slug": "full_part_new_redaction",
+      "name": "Полная новая редакция части (new_redaction)",
+      "source_fragment": "<p>часть 4 статьи 5 изложить в следующей редакции:\n<p>«Кандидаты, не заявившие о самоотводе, рассматриваются на заседании избирательной комиссии.»</p>",
+      "source_article_number": "2",
+      "source_subitems": "2)",
+      "revision_number": "2)",
+      "expected_output": [
+        {
+          "revision_number": "2)",
+          "structural_element": "Статья 5 часть 4",
+          "type": "new_redaction",
+          "description": "2"
+        }
+      ],
+      "notes": "Целая часть получает новую редакцию. Тип new_redaction. description = абсолютный номер абзаца с текстом в кавычках."
+    },
+    {
+      "id": "s3_ex_03",
+      "slug": "add_new_point",
+      "name": "Добавление нового пункта (add)",
+      "source_fragment": "<p>статью 3 дополнить пунктом 4 следующего содержания:\n<p>«4. Граждане, имеющие трех и более детей...»;</p>",
+      "source_article_number": "1",
+      "source_subitems": null,
+      "revision_number": null,
+      "expected_output": [
+        {
+          "revision_number": null,
+          "structural_element": "Статья 3",
+          "type": "add",
+          "description": "2",
+          "new": "пункт 4"
+        }
+      ],
+      "notes": "Добавление нового пункта в статью. Тип add. structural_element = родитель (статья 3), new = добавляемый элемент."
+    },
+    {
+      "id": "s3_ex_04",
+      "slug": "delete_paragraph",
+      "name": "Удаление абзаца (delete)",
+      "source_fragment": "<p>абзац второй признать утратившим силу</p>",
+      "source_article_number": "4",
+      "source_subitems": "1)",
+      "revision_number": "1)",
+      "expected_output": [
+        {
+          "revision_number": "1)",
+          "structural_element": "Статья 10 часть 3 абзац 2",
+          "type": "delete",
+          "description": "абзац второй признать утратившим силу"
+        }
+      ],
+      "notes": "Удаление конкретного абзаца. Правило E2. Тип delete. Абзац не добавляется в structural_element как уровень, а указывается как целевой элемент."
+    },
+    {
+      "id": "s3_ex_05",
+      "slug": "plural_delete_split",
+      "name": "Плюрализм удаления — разбиение",
+      "source_fragment": "<p>б) пункты 3 и 4 части 3 признать утратившими силу;</p>",
+      "source_article_number": "2",
+      "source_subitems": "1)->б)",
+      "revision_number": "1)->б)",
+      "expected_output": [
+        {
+          "revision_number": "1)->б)",
+          "structural_element": "Статья 2 часть 3 пункт 3",
+          "type": "delete",
+          "description": "пункты 3 и 4 части 3 признать утратившими силу"
+        },
+        {
+          "revision_number": "1)->б)",
+          "structural_element": "Статья 2 часть 3 пункт 4",
+          "type": "delete",
+          "description": "пункты 3 и 4 части 3 признать утратившими силу"
+        }
+      ],
+      "notes": "КРИТИЧЕСКИЙ ПРИМЕР. Множественное число 'пункты 3 и 4' РАЗБИВАЕТСЯ на два отдельных объекта. ОШИБКА: создание одного объекта с structural_element = 'Статья 2 часть 3'."
+    },
+    {
+      "id": "s3_ex_06",
+      "slug": "table_appendix_change",
+      "name": "Изменение в таблице приложения (change)",
+      "source_fragment": "<p>в Разделе I таблицы Приложения 2 слова «Севастополь» заменить словами «город Севастополь»</p>",
+      "source_article_number": "3",
+      "source_subitems": "1)",
+      "revision_number": "1)",
+      "expected_output": [
+        {
+          "revision_number": "1)",
+          "structural_element": "Приложение 2 таблица Раздел I",
+          "type": "change",
+          "description": "в Разделе I таблицы Приложения 2 слова «Севастополь» заменить словами «город Севастополь»"
+        }
+      ],
+      "notes": "Изменение в таблице приложения. Правило D2. structural_element включает Приложение -> таблица -> Раздел I. Тип change (изменение слов внутри секции)."
+    },
+    {
+      "id": "s3_ex_07",
+      "slug": "sentence_change_not_new_redaction",
+      "name": "Изменение второго предложения части (change)",
+      "source_fragment": "<p>второе предложение части 4 изложить в следующей редакции: «Кандидаты, не заявившие о самоотводе, рассматриваются на заседании.»</p>",
+      "source_article_number": "2",
+      "source_subitems": "3)",
+      "revision_number": "3)",
+      "expected_output": [
+        {
+          "revision_number": "3)",
+          "structural_element": "Статья 5 часть 4",
+          "type": "change",
+          "description": "второе предложение изложить в следующей редакции: Кандидаты, не заявившие о самоотводе, рассматриваются на заседании."
+        }
+      ],
+      "notes": "СТРОГО CHANGE, несмотря на 'изложить в следующей редакции'. Объект — предложение, а не целая часть. Правило Step 0. 'предложение' НЕ включается в structural_element."
+    },
+    {
+      "id": "s3_ex_08",
+      "slug": "article_title_change",
+      "name": "Изменение наименования статьи (change)",
+      "source_fragment": "<p>в наименовании статьи 6 слова «многодетные семьи» заменить словами «семьи с тремя и более детьми»</p>",
+      "source_article_number": "1",
+      "source_subitems": null,
+      "revision_number": null,
+      "expected_output": [
+        {
+          "revision_number": null,
+          "structural_element": "Статья 6 наименование",
+          "type": "change",
+          "description": "в наименовании статьи 6 слова «многодетные семьи» заменить словами «семьи с тремя и более детьми»"
+        }
+      ],
+      "notes": "Изменение наименования конкретной статьи. Правило C. Тип change (изменение слов), даже если это 'исключить'. structural_element = 'Статья X наименование'."
+    },
+    {
+      "id": "s3_ex_09",
+      "slug": "appendix_new_redaction",
+      "name": "Новая редакция приложения (new_redaction)",
+      "source_fragment": "<p>приложение 1 изложить в следующей редакции:\n<p>«<table>...</table></p>",
+      "source_article_number": "5",
+      "source_subitems": "1)",
+      "revision_number": "1)",
+      "expected_output": [
+        {
+          "revision_number": "1)",
+          "structural_element": "Приложение 1",
+          "type": "new_redaction",
+          "description": "2"
+        }
+      ],
+      "notes": "Приложение как независимый элемент. Правило D. Тип new_redaction. description = номер абзаца с HTML таблицей."
+    },
+    {
+      "id": "s3_ex_10",
+      "slug": "npa_head_new_redaction",
+      "name": "Новая редакция наименования НПА (new_redaction)",
+      "source_fragment": "<p>наименование Закона города Севастополя от 27 июля 2016 года № 269-ЗС изложить в следующей редакции:\n<p>«О предоставлении земельных участков, находящихся в собственности города Севастополя, отдельным категориям граждан в собственность бесплатно»</p>",
+      "source_article_number": "1",
+      "source_subitems": "1)",
+      "revision_number": "1)",
+      "expected_output": [
+        {
+          "revision_number": "1)",
+          "structural_element": "Наименование",
+          "type": "new_redaction",
+          "description": "2"
+        }
+      ],
+      "notes": "Полная замена наименования НПА. Правило F. Тип new_redaction, несмотря на отсутствие явного указания на слова. description = номер абзаца с текстом в кавычках."
+    }
+  ]
+}

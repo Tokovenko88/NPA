@@ -1,0 +1,10 @@
+# Stage 4: HTML Text Processing
+
+Apply the following change to the provided HTML:
+
+{element_html}
+
+Change description:
+{description}
+
+Return the modified HTML and highlights in JSON format.
