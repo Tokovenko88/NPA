@@ -28,4 +28,4 @@ def test_reference_integrity_is_available_from_domain_api():
 
     issues = find_reference_issues(data)
 
-    assert any(issue.code == "duplicate_item_id" for issue in issues)
+    assert any(issue.category == "duplicate_item_id" for issue in issues)
