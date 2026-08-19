@@ -1,7 +1,7 @@
 """Pure planning helpers for deterministic element rebuild order.
 
 This module contains only deterministic planning logic. It does not mutate the
-aNPA document and does not execute a rebuild.
+NPA document and does not execute a rebuild.
 """
 
 from __future__ import annotations
