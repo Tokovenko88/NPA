@@ -196,30 +196,6 @@ class LearningEngine:
     # ------------------------------------------------------------------
     # 3. Обратная связь по промптам
     # ------------------------------------------------------------------
-    def record_prompt_feedback(self, stage, prompt_hash, success, notes=''):
-        """Записать эффективность промпта для этапа (``stage`` — 1..4)."""
-        key = f"{stage}:{prompt_hash}"
-        if key not in self._prompt_feedback:
-            self._prompt_feedback[key] = {
-                'stage': stage,
-                'prompt_hash': prompt_hash,
-                'success_count': 0,
-                'fail_count': 0,
-                'notes': [],
-            }
-        rec = self._prompt_feedback[key]
-        if success:
-            rec['success_count'] += 1
-        else:
-            rec['fail_count'] += 1
-        if notes:
-            rec['notes'].append({
-                'timestamp': datetime.now().isoformat(),
-                'text': notes,
-            })
-        save_json(self.PROMPT_FEEDBACK_FILE, self._prompt_feedback)
-
-    def get_best_prompts(self, stage, top_n=3):
         """Топ-N самых эффективных промптов для этапа."""
         candidates = []
         for key, rec in self._prompt_feedback.items():

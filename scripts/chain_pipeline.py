@@ -35,11 +35,8 @@ import shutil
 import sys
 from datetime import datetime
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
-
 from npa_processor._bootstrap import _bootstrap_project_root
+from npa_processor.logging_utils import log
 
 _bootstrap_project_root()
 
@@ -49,14 +46,14 @@ from npa_processor.paths import (  # noqa: E402
     REPORT_PATH,
     RESULTS_DIR,
     SOURCE_DIR,
+    PROJECT_ROOT,
     load_json,
     save_json,
 )
 from scripts.run_pipeline import main as run_pipeline_main  # noqa: E402
 
+BASE_DIR = PROJECT_ROOT
 
-def log(msg, tag='info'):
-    print(f"[{tag.upper()}] {msg}")
 
 
 def extract_npa_number(npa_json):
@@ -333,7 +330,7 @@ def generate_chain_report(report_path, target_file, amendments, chain_report):
         f.write('\n'.join(lines))
 
 
-if __name__ == '__main__':
+def main(args=None):
     parser = argparse.ArgumentParser(
         description='Chain Pipeline: sequentially apply multiple NPA amendments to a target'
     )
@@ -343,10 +340,14 @@ if __name__ == '__main__':
     parser.add_argument('--answers', help='Base folder with stage answers per amendment (optional)')
     parser.add_argument('--stop-on-error', action='store_true',
                         help='Stop chain on first step failure (default: continue)')
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    if not os.path.isdir(args.input_folder):
-        log(f"Input folder not found: {args.input_folder}", 'error')
+    if not os.path.isdir(parsed.input_folder):
+        log(f"Input folder not found: {parsed.input_folder}", 'error')
         sys.exit(1)
 
-    run_chain(args.input_folder, args.target, args.output, args.answers, stop_on_error=args.stop_on_error)
+    run_chain(parsed.input_folder, parsed.target, parsed.output, parsed.answers, stop_on_error=parsed.stop_on_error)
+
+
+if __name__ == '__main__':
+    main()

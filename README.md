@@ -94,3 +94,9 @@ The agent can:
 - Verify structural integrity and referential validity
 - Learn from failures and improve its own code, instructions, and examples
 - Report issues found in База without modifying it
+
+## Development notes
+
+- Dead code cleanup and unification of helpers (`sup_digits_to_unicode`, `log`, `close_revision_date`, tree helpers).
+- Bootstrap is centralized in `npa_processor/_bootstrap.py`.
+- Logging helper: `npa_processor.logging_utils.log`.

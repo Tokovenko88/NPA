@@ -11,11 +11,12 @@ import copy
 import os
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from bs4 import BeautifulSoup
 
 from npa_processor._bootstrap import _bootstrap_project_root
+from npa_processor.logging_utils import log
 
 _bootstrap_project_root()
 
@@ -52,13 +53,6 @@ from npa_processor.processing.element_ops import (  # noqa: E402
     rebuild_element_with_history,
 )
 
-
-def log(msg, tag='info'):
-    try:
-        print(msg, flush=True)
-    except UnicodeEncodeError:
-        safe_msg = msg.encode('ascii', errors='replace').decode('ascii')
-        print(safe_msg, flush=True)
 
 
 def _validate_stage3_changes(changes, log_callback):

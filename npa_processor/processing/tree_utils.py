@@ -26,6 +26,19 @@ def find_item_by_id(data, item_id):
     return recurse(data.get('npa_items_revision', []))
 
 
+def find_parent(data, target_id):
+    """Находит родительский элемент по item_id. Возвращает parent или None."""
+    def recurse(items, parent=None):
+        for item in items:
+            if item.get('item_id') == target_id:
+                return parent
+            found = recurse(item.get('item_children', []), item)
+            if found is not None:
+                return found
+        return None
+    return recurse(data.get('npa_items_revision', []))
+
+
 def parse_number_word(word):
     word = word.lower().rstrip('.,;:')
     mapping = {

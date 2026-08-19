@@ -1,14 +1,6 @@
-import os
-import sys
+from npa_processor._bootstrap import _bootstrap_project_root
 
-
-def bootstrap_project_root():
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
-
-bootstrap_project_root()
+_bootstrap_project_root()
 
 
 def run_pipeline():

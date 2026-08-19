@@ -5,17 +5,10 @@
 """
 
 import logging
-import os
 import re
-import sys
-
-from bs4 import BeautifulSoup
-
-_project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 from npa_processor._bootstrap import _bootstrap_project_root
+from npa_processor.processing.text_utils import sup_digits_to_unicode
 
 _bootstrap_project_root()
 
@@ -29,7 +22,7 @@ class NpaToJsonGenerator:
             handler = logging.StreamHandler()
             handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             self.logger.addHandler(handler)
-        html_content = self.sup_digits_to_unicode(html_content)
+        html_content = sup_digits_to_unicode(html_content)
         try:
             import lxml
             self.soup = BeautifulSoup(html_content, 'lxml')
@@ -78,15 +71,6 @@ class NpaToJsonGenerator:
         self._pending_enum_parent = None
         self.quote_level = 0
 
-    def sup_digits_to_unicode(self, text):
-        if not text:
-            return ""
-        sup_digits = str.maketrans('0123456789', '⁰¹²³⁴⁵⁶⁷⁸⁹')
-        def replacer(match):
-            digits = match.group(1).strip()
-            return digits.translate(sup_digits)
-        return re.sub(r'<sup>\s*([0-9]+)\s*</sup>', replacer, text, flags=re.IGNORECASE)
-
     def _wrap_table_html(self, html_text):
         if not html_text or '<table' not in html_text:
             return html_text
@@ -128,19 +112,6 @@ class NpaToJsonGenerator:
         base_id = self.build_element_id(element_type, item_number, list(self.stack))
         return f"{base_id}_double_{double_index}"
 
-    def _filter_out_table_children(self, tags):
-        if tags is None:
-            return []
-        filtered = []
-        for tag in tags:
-            if tag.name == 'table':
-                parent_div = tag.find_parent('div')
-                if parent_div and parent_div.get('class') and 'double-scroll' in parent_div.get('class'):
-                    continue
-                filtered.append(tag)
-            elif tag.find_parent('table') is None:
-                filtered.append(tag)
-        return filtered
 
     def _is_structural_table_row(self, row_tag):
         cells = row_tag.find_all(['td', 'th'])
@@ -423,23 +394,6 @@ class NpaToJsonGenerator:
         self._process_structured_table(tag, i, all_tags)
         return True
 
-    def _add_orphan_content(self, html):
-        anchor = self.build_element_id('orphan')
-        item = {
-            'id': anchor,
-            'type': 'paragraph',
-            'number': '',
-            'display_text': '',
-            'full_text': '',
-            'title': '',
-            'level': 1,
-            'children': [],
-            'parent_id': None,
-            'collected_content': [html],
-            'head_revisions': []
-        }
-        self.toc_items.append(item)
-        self.stack.append(item)
 
     def _parse_table_row_candidate(self, tr_tag):
         cells = tr_tag.find_all(['td', 'th'])
@@ -531,9 +485,6 @@ class NpaToJsonGenerator:
         legal_close = bool(re.search(r'»(?:[.;,])?$', text.rstrip()))
         return opens, closes, net, starts_with_open, legal_close
 
-    def _is_starting_number(self, number_str):
-        num = str(number_str).strip().lower()
-        return num == '1' or num == 'а'
 
     def _open_enumeration(self, parent_item, candidate):
         full_text = candidate.get('full_text', '')
@@ -552,23 +503,6 @@ class NpaToJsonGenerator:
         closed = self.enum_stack.pop()
         self.pending_parent_for_next_content = closed['parent_item']
 
-    def _close_enumeration_if_needed(self):
-        if not self.enum_stack:
-            return False
-        if not self.stack:
-            return False
-        last_item = self.stack[-1]
-        full_text = last_item.get('full_text', '')
-        if full_text.rstrip().endswith('.') and self.enum_stack[-1]['close_on_dot']:
-            self._close_enumeration()
-            return True
-        return False
-
-    def _get_no_name_parent_id(self):
-        for item in reversed(self.stack):
-            if item['type'] in ('appendix', 'nested_appendix'):
-                return item['id']
-        return self.document_id if self.document_id else None
 
     def _sync_enum_stack(self):
         if not self.enum_stack:

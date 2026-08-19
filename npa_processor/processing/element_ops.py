@@ -35,6 +35,7 @@ from npa_processor.processing.tree_utils import (
     find_child_by_type_and_number,
     find_element_in_chapters_or_sections,
     find_item_by_id,
+    find_parent,
     insert_child_ref_in_body,
 )
 
@@ -79,97 +80,6 @@ def extract_json_from_text(text):
             pass
     return None
 
-def split_range_changes(changes, log_callback=None):
-    if not changes:
-        return []
-    def _log(msg):
-        if log_callback:
-            log_callback(msg, 'info')
-    RANGE_PATTERN = re.compile(
-        r'(часть|части|пункт|пункты|пункта|подпункт|подпункты|статья|статьи|статью|абзац|абзацы|глава|главы|раздел|разделы|приложение|приложения)'
-        r'\s+'
-        r'((?:\d+(?:\.\d+)?'
-        r'(?:\s*[–—,-]\s*|\s+и\s+)'
-        r')+\d+(?:\.\d+)?)',
-        re.IGNORECASE
-    )
-    def expand_numbers(range_str):
-        normalized = safe_re_sub(r'\s+и\s+', '-', range_str)
-        normalized = safe_re_sub(r'[–—]', '-', normalized)
-        normalized = safe_re_sub(r',\s*', '-', normalized)
-        parts = [p.strip() for p in normalized.split('-') if p.strip()]
-        if len(parts) == 2:
-            try:
-                start = int(parts[0])
-                end = int(parts[1])
-                if end > start and end - start < 50:
-                    return [str(n) for n in range(start, end + 1)]
-            except ValueError:
-                pass
-        return parts
-    result = []
-    for ch in changes:
-        ch_type = ch.get('type', '')
-        if ch_type not in ('add', 'new_redaction'):
-            result.append(ch)
-            continue
-        structural = ch.get('structural_element', '')
-        m = RANGE_PATTERN.search(structural)
-        if not m:
-            result.append(ch)
-            continue
-        etype_word_orig = m.group(1)
-        range_str = m.group(2)
-        numbers = expand_numbers(range_str)
-        if len(numbers) <= 1:
-            result.append(ch)
-            continue
-        etype_singular = _ETYPE_WORDS.get(etype_word_orig.lower(), etype_word_orig.lower())
-        tail = structural[m.end():].strip()
-        description = ch.get('description', '')
-        html_parts = split_html_by_leading_number(description, numbers)
-        if log_callback:
-            _log(f"  split_range_changes: '{structural}' -> разбиваем на {numbers}")
-        for n in numbers:
-            new_structural = f"{etype_singular} {n}"
-            if tail:
-                new_structural += f" {tail}"
-            new_ch = dict(ch)
-            new_ch['structural_element'] = new_structural
-            new_ch['description'] = html_parts.get(n, description)
-            result.append(new_ch)
-            if log_callback:
-                _log(f"    -> создан объект: structural_element='{new_structural}', description длина {len(new_ch['description'])}")
-    return result
-
-def _correct_change_description(ch, change_data, target_element, log_callback):
-    ch_type = ch.get('type', '')
-    if ch_type == 'delete':
-        return True
-    rev_number = ch.get('revision_number', None)
-    if ch_type not in ('add', 'new_redaction'):
-        return True
-    if not rev_number or rev_number == 'null':
-        source_element = target_element
-        log_callback(f"  {ch_type}: revision_number отсутствует, используем target_element (ID {source_element.get('item_id')})", 'info')
-    else:
-        source_element = _find_element_by_revision_path(target_element, rev_number)
-        if not source_element:
-            structural_info = ch.get('structural_element', 'неизвестно')
-            log_callback(f"  {ch_type}: Не удалось найти элемент по пути revision_number '{rev_number}' для изменения '{structural_info}'", 'warning')
-            err_msg = (f"КРИТИЧЕСКАЯ ОШИБКА: {ch_type}: Не удалось найти элемент по пути revision_number '{rev_number}' "
-                       f"для изменения '{structural_info}'")
-            log_callback(err_msg, 'error')
-            return False
-        else:
-            log_callback(f"  {ch_type}: Найден элемент по пути revision_number '{rev_number}' -> ID {source_element.get('item_id')}", 'info')
-    full_html = get_full_element_html(source_element, include_header=False)
-    if not full_html:
-        log_callback(f"  {ch_type}: В элементе {source_element.get('item_id')} нет HTML содержимого! Изменение невозможно применить!", 'error')
-        return False
-    ch['_quoted_html'] = full_html
-    log_callback(f"  {ch_type}: сохранён полный HTML источника (длина {len(full_html)}) для последующего извлечения абзацев", 'source')
-    return True
 
 def _fetch_source_html_for_change(change, change_data, target_element, log_callback):
     rev_number = change.get('revision_number')
@@ -1229,15 +1139,6 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
     fragment_element_id = old_item.get('item_id')
     root_number = old_item.get('item_number')
     root_type = old_item.get('item_type')
-    parent = None
-    def find_parent(items, target_id, parent=None):
-        for item in items:
-            if item.get('item_id') == target_id:
-                return parent
-            found = find_parent(item.get('item_children', []), target_id, item)
-            if found:
-                return found
-        return None
     root_items = data.get('npa_items_revision', [])
     parent = find_parent(root_items, element_id)
     is_table_child = False

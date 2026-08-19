@@ -24,55 +24,6 @@ def clean_and_unwrap_html(html_text, is_table_child=False):
             html_text = "\n".join(str(row) for row in rows) if rows else table_tag.decode_contents()
     return html_text.strip()
 
-def _extract_quoted_html(html, log_callback=None):
-    if not html or not html.strip():
-        return None
-    if '«' not in html or '»' not in html:
-        if log_callback:
-            log_callback("  Не найдены кавычки « » в HTML", 'warning')
-        return None
-    raw_first = html.find('«')
-    raw_last = html.rfind('»')
-    if raw_first != -1 and raw_last != -1 and raw_last > raw_first:
-        block_start = html.rfind('<p', 0, raw_first)
-        if block_start == -1:
-            block_start = html.rfind('<div', 0, raw_first)
-        if block_start == -1:
-            block_start = raw_first
-        block_end = html.find('</p>', raw_last)
-        if block_end == -1:
-            block_end = html.find('</div>', raw_last)
-        if block_end == -1:
-            block_end = raw_last + 1
-        else:
-            block_end += len('</p>') if '</p>' in html[raw_last:block_end+4] else len('</div>')
-        extracted = html[block_start:block_end]
-        extracted_soup = BeautifulSoup(extracted, 'html.parser')
-        for text_node in list(extracted_soup.find_all(string=True)):
-            if '«' in text_node:
-                idx = text_node.find('«')
-                new_text = text_node[:idx] + text_node[idx+1:]
-                text_node.replace_with(new_text)
-                break
-            else:
-                text_node.extract()
-        all_text_nodes = list(extracted_soup.find_all(string=True))
-        for text_node in reversed(all_text_nodes):
-            if '»' in text_node:
-                idx = text_node.rfind('»')
-                after_quote = text_node[idx+1:]
-                after_quote = re.sub(r'^[\s;,.!?…]+', '', after_quote)
-                new_text = text_node[:idx] + after_quote
-                text_node.replace_with(new_text)
-                break
-            else:
-                text_node.extract()
-        result = str(extracted_soup).strip()
-        result = safe_re_sub(r';{2,}', ';', result)
-        if log_callback:
-            log_callback(f"  _extract_quoted_html: извлечено {len(result)} симв. (из {len(html)})", 'source')
-        return result
-    return html
 
 def extract_paragraphs_by_indices(html: str, range_str: str, log_callback=None) -> str:
     if not html:
@@ -458,11 +409,6 @@ def strip_number_from_element_html(html: str, item_number: str, item_type: str) 
     cleaned = safe_re_sub(pattern, r'\1', html, count=1, flags=re.DOTALL)
     return cleaned
 
-def strip_leading_number_from_html_if_needed(html, element_type, item_number):
-    if element_type in ('part', 'point', 'subpoint') and html and item_number:
-        item_number = str(item_number)
-        return remove_leading_number_from_html(html, item_number)
-    return html
 
 def _correct_table_highlights(old_html, new_html, highlights, log_callback=None):
     if not highlights or not isinstance(highlights, dict):
@@ -935,9 +881,6 @@ def compute_highlights_from_html_diff(old_html, new_html, log_callback=None, cha
                 paragraphs = [text]
         return paragraphs
 
-    def split_sentences(text):
-        parts = re.split(r'(?<=[.!;])\s+', text)
-        return [p.strip() for p in parts if p.strip()]
 
     replacement_pairs = _extract_replacement_pairs(change_description) if change_description else []
 

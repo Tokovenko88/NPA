@@ -36,6 +36,7 @@ from npa_processor.processing.tree_utils import (
     find_appendix_by_number,
     find_child_by_type_and_number,
     find_item_by_id,
+    find_parent,
 )
 from npa_processor.processing.element_ops import (
     _add_new_element,
@@ -45,7 +46,6 @@ from npa_processor.processing.element_ops import (
     _find_existing_element_flexible,
     _make_new_revision,
     build_new_body_preserving_child_refs,
-    close_revision_date,
     is_highlights_empty,
     parse_add_new_field,
 )
@@ -1139,16 +1139,6 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
             revisions[active_idx]['not_valid'] = modified_by_id_str
         if log_callback:
             log_callback(f"  Элемент '{structural}' помечен как удалённый", 'result')
-        def find_parent(data, target_id):
-            def recurse(items, parent=None):
-                for item in items:
-                    if item.get('item_id') == target_id:
-                        return parent
-                    found = recurse(item.get('item_children', []), item)
-                    if found:
-                        return found
-                return None
-            return recurse(data.get('npa_items_revision', []))
         parent = find_parent(data, element.get('item_id'))
         adjust_punctuation_after_deletion(parent, element, log_callback)
         return True

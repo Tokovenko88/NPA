@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["npa_processor*"]
+include = ["npa_processor*", "scripts*"]
 
 [project.scripts]
 npa-pipeline = "scripts.run_pipeline:main"

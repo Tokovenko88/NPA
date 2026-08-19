@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 
-from npa_processor.processing.tree_utils import find_item_by_id
-
 VALID_ITEM_TYPES = {
     'preamble', 'chapter', 'section', 'article', 'part', 'point',
     'subpoint', 'appendix', 'nested_appendix', 'structured_table',
@@ -680,9 +678,4 @@ class StructureVerifier:
                     )
 
 
-def verify_document(data, changes=None, source_data=None, change_log=None):
-    """РЈРґРѕР±РЅР°СЏ С‚РѕС‡РєР° РІС…РѕРґР° вЂ” РІРѕР·РІСЂР°С‰Р°РµС‚ dict-СЂРµР·СѓР»СЊС‚Р°С‚."""
-    verifier = StructureVerifier()
-    res = verifier.verify(data, changes=changes, source_data=source_data,
-                          change_log=change_log)
-    return res.to_dict()
+
