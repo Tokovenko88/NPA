@@ -8,23 +8,30 @@ matching the reference implementation exactly.
 
 import argparse
 import copy
-import json
 import os
 import re
-import sys
 import time
 from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+from npa_processor._bootstrap import _bootstrap_project_root
+
+_bootstrap_project_root()
 
 from npa_processor.learning import (  # noqa: E402
     DocumentHistory,
     LearningEngine,
     StructureVerifier,
+)
+from npa_processor.paths import (  # noqa: E402
+    ANSWERS_DIR,
+    REPORT_PATH,
+    RESULTS_DIR,
+    SOURCE_DIR,
+    load_json,
+    save_json,
+    save_text,
 )
 from npa_processor.processing.change_applier import apply_change  # noqa: E402
 from npa_processor.processing.html_utils import (  # noqa: E402
@@ -43,27 +50,6 @@ from npa_processor.processing.ui_utils import (  # noqa: E402
     get_date_for_filename,
     rebuild_element_with_history,
 )
-
-ANSWERS_DIR = os.path.join(BASE_DIR, 'work', 'answers')
-RESULT_DIR = os.path.join(BASE_DIR, 'work', 'results')
-SOURCE_DIR = os.path.join(BASE_DIR, 'work', 'source')
-
-
-def load_json(path):
-    with open(path, encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def save_text(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(text)
 
 
 def log(msg, tag='info'):
@@ -647,7 +633,7 @@ def main(args=None):
                         help='Run only up to specified stage (1-5)')
     parsed = parser.parse_args(args)
 
-    result_dir = RESULT_DIR
+    result_dir = RESULTS_DIR
     if parsed.result_dir:
         result_dir = parsed.result_dir
         os.makedirs(result_dir, exist_ok=True)
@@ -1508,7 +1494,7 @@ def main(args=None):
 - Время выполнения: {elapsed:.1f}с
 """
 
-    report_path = os.path.join(BASE_DIR, 'scripts', 'report.md')
+    report_path = REPORT_PATH
     save_text(report_path, report)
 
     # Print concise chat summary

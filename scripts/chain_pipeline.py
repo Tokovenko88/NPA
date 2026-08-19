@@ -29,7 +29,6 @@ If target_npa.json is not present, the oldest NPA by date is used as target.
 """
 
 import argparse
-import json
 import os
 import re
 import shutil
@@ -44,29 +43,20 @@ from npa_processor._bootstrap import _bootstrap_project_root
 
 _bootstrap_project_root()
 
+from npa_processor.paths import (  # noqa: E402
+    ANSWERS_DIR,
+    CHAIN_RESULTS_DIR,
+    REPORT_PATH,
+    RESULTS_DIR,
+    SOURCE_DIR,
+    load_json,
+    save_json,
+)
 from scripts.run_pipeline import main as run_pipeline_main  # noqa: E402
-
-# Standard working directories
-SOURCE_DIR = os.path.join(BASE_DIR, 'work', 'source')
-ANSWERS_DIR = os.path.join(BASE_DIR, 'work', 'answers')
-RESULT_DIR = os.path.join(BASE_DIR, 'work', 'results')
-CHAIN_RESULTS_DIR = os.path.join(BASE_DIR, 'work', 'chain_results')
-REPORT_PATH = os.path.join(BASE_DIR, 'scripts', 'report.md')
 
 
 def log(msg, tag='info'):
     print(f"[{tag.upper()}] {msg}")
-
-
-def load_json(path):
-    with open(path, encoding='utf-8') as f:
-        return json.load(f)
-
-
-def save_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def extract_npa_number(npa_json):
@@ -179,7 +169,7 @@ def run_single_pipeline(result_dir=None):
         log(f"Pipeline raised exception: {e}", 'error')
         return None
 
-    search_dir = result_dir if result_dir else RESULT_DIR
+    search_dir = result_dir if result_dir else RESULTS_DIR
     if not os.path.exists(search_dir):
         return None
 

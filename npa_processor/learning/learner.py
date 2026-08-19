@@ -26,21 +26,18 @@ import os
 from collections import defaultdict
 from datetime import datetime
 
+from npa_processor.paths import LEARNING_DIR, load_json, save_json
+
 logger = logging.getLogger(__name__)
 
 
 class LearningEngine:
-    """Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ РґРІРёР¶РѕРє самообучения.
+    """Центральный движок самообучения.
 
-    РҐСЂР°РЅРёР»РёС‰Р° РЅР°С…РѕРґСЏС‚СЃСЏ РІ ``07_learning/`` (РІ РєРѕСЂРЅРµ РїСЂРѕРµРєС‚Р°, РєР°Рє РѕРїРёСЃР°РЅРѕ
-    РІ ``AGENT_INSTRUCTION.md`` / ``README.md``) Рё РёСЃРєР»СЋС‡Р°СЋС‚СЃСЏ РёР· git.
+    Хранилища находятся в ``learning/`` (в корне проекта, как описано
+    в ``AGENT_INSTRUCTION.md`` / ``README.md``) и исключаются из git.
     """
 
-    BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            '..', 'learning')
-    BASE_DIR = os.path.normpath(BASE_DIR)
-
-    LEARNING_DIR = BASE_DIR
     LOG_FILE = os.path.join(LEARNING_DIR, 'learning_log.json')
     MAPPINGS_FILE = os.path.join(LEARNING_DIR, 'element_mappings.json')
     PROMPT_FEEDBACK_FILE = os.path.join(LEARNING_DIR, 'prompt_feedback.json')
@@ -52,75 +49,21 @@ class LearningEngine:
     BUG_FIXES_FILE = os.path.join(LEARNING_DIR, 'bug_fixes.json')
     SEED_EXAMPLES_FILE = os.path.join(LEARNING_DIR, 'seed_examples.json')
 
-    _LEGACY_DIR = os.path.normpath(
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                     '..', 'learning')
-    )
-
     def __init__(self):
-        os.makedirs(self.LEARNING_DIR, exist_ok=True)
-        self._migrate_legacy()
-        self._log = self._load_json(self.LOG_FILE, [])
-        self._mappings = self._load_json(self.MAPPINGS_FILE, {})
-        self._prompt_feedback = self._load_json(self.PROMPT_FEEDBACK_FILE, {})
-        self._verification_log = self._load_json(self.VERIFICATION_LOG_FILE, [])
-        self._change_outcomes = self._load_json(self.CHANGE_OUTCOMES_FILE, [])
-        self._recovery_log = self._load_json(self.RECOVERY_LOG_FILE, [])
-        self._run_log = self._load_json(self.RUN_LOG_FILE, [])
-        self._error_examples = self._load_json(self.ERROR_EXAMPLES_FILE, [])
-        self._bug_fixes = self._load_json(self.BUG_FIXES_FILE, [])
-        self._seed_examples = self._load_json(self.SEED_EXAMPLES_FILE, [])
+        os.makedirs(LEARNING_DIR, exist_ok=True)
+        self._log = load_json(self.LOG_FILE, [])
+        self._mappings = load_json(self.MAPPINGS_FILE, {})
+        self._prompt_feedback = load_json(self.PROMPT_FEEDBACK_FILE, {})
+        self._verification_log = load_json(self.VERIFICATION_LOG_FILE, [])
+        self._change_outcomes = load_json(self.CHANGE_OUTCOMES_FILE, [])
+        self._recovery_log = load_json(self.RECOVERY_LOG_FILE, [])
+        self._run_log = load_json(self.RUN_LOG_FILE, [])
+        self._error_examples = load_json(self.ERROR_EXAMPLES_FILE, [])
+        self._bug_fixes = load_json(self.BUG_FIXES_FILE, [])
+        self._seed_examples = load_json(self.SEED_EXAMPLES_FILE, [])
 
     # ------------------------------------------------------------------
-    # РќРёР·РєРѕСѓСЂРѕРІРЅРµРІС‹Рµ СѓС‚РёР»РёС‚С‹
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _load_json(path, default):
-        if not os.path.exists(path):
-            return default
-        try:
-            with open(path, encoding='utf-8') as f:
-                return json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error("Corrupted JSON at %s: %s вЂ” resetting to default", path, e)
-            return default
-        except Exception as e:
-            logger.error("Failed to load %s: %s", path, e)
-            return default
-
-    @staticmethod
-    def _save_json(path, data):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tmp_path = path + '.tmp'
-        try:
-            with open(tmp_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_path, path)
-        except Exception as e:
-            logger.error("Failed to save %s: %s", path, e)
-            try:
-                os.unlink(tmp_path)
-            except Exception as e:
-                logger.warning("Failed to remove temp file %s: %s", tmp_path, e)
-
-    def _migrate_legacy(self):
-        """РџРµСЂРµРЅРµСЃС‚Рё РґР°РЅРЅС‹Рµ РёР· СЃС‚Р°СЂРѕРіРѕ СЂР°СЃРїРѕР»РѕР¶РµРЅРёСЏ ``npa_processor/07_learning/``."""
-        legacy = self._LEGACY_DIR
-        if legacy == self.LEARNING_DIR or not os.path.isdir(legacy):
-            return
-        for fname in ('learning_log.json', 'element_mappings.json',
-                      'prompt_feedback.json'):
-            src = os.path.join(legacy, fname)
-            dst = os.path.join(self.LEARNING_DIR, fname)
-            if os.path.exists(src) and not os.path.exists(dst):
-                try:
-                    data = json.load(open(src, encoding='utf-8'))
-                    self._save_json(dst, data)
-                except Exception as e:
-                    logger.warning("Failed to migrate legacy file %s: %s", src, e)
-
-    # ------------------------------------------------------------------
-    # 1. Р—Р°РїРёСЃСЊ РёС‚РѕРіРѕРІРѕРіРѕ СЂРµР·СѓР»СЊС‚Р°С‚Р° Р·Р°РїСѓСЃРєР°
+    # 1. Запись итогового результата запуска
     # ------------------------------------------------------------------
     def record_run(self, source_npa_id, target_npa_id, changes_applied,
                    changes_failed, manual_corrections, notes=''):
@@ -134,7 +77,7 @@ class LearningEngine:
             'notes': notes,
         }
         self._log.append(entry)
-        self._save_json(self.LOG_FILE, self._log)
+        save_json(self.LOG_FILE, self._log)
 
     def record_detailed_run(self, source_npa_id, target_npa_id, changes_applied,
                             changes_failed, manual_corrections, notes='',
@@ -171,14 +114,14 @@ class LearningEngine:
             'elapsed_seconds': elapsed_seconds,
         }
         self._run_log.append(detailed)
-        self._save_json(self.RUN_LOG_FILE, self._run_log)
+        save_json(self.RUN_LOG_FILE, self._run_log)
 
     # ------------------------------------------------------------------
-    # 2. РњР°РїРїРёРЅРіРё structural_element -> item_id
+    # 2. Маппинги structural_element -> item_id
     # ------------------------------------------------------------------
     def record_mapping(self, structural_element, item_id, success, source_context='',
                        error_category=None, error_message=None):
-        """Р—Р°РїРёСЃР°С‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚ СЂР°Р·СЂРµС€РµРЅРёСЏ structural_element в†’ item_id.
+        """Записать результат разрешения structural_element → item_id.
 
         РўРµРїРµСЂСЊ Р·Р°РїРёСЃСЊ РґРµР»Р°РµС‚СЃСЏ **РїРѕСЃР»Рµ** С„Р°РєС‚РёС‡РµСЃРєРѕРіРѕ РїСЂРёРјРµРЅРµРЅРёСЏ изменения,
         РїРѕСЌС‚РѕРјСѓ success РѕС‚СЂР°Р¶Р°РµС‚ РЅРµ РїСЂРѕСЃС‚Рѕ РїРѕРёСЃРє элемента, Р° РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ
@@ -208,7 +151,7 @@ class LearningEngine:
                 cats[error_category] = cats.get(error_category, 0) + 1
             if error_message:
                 rec['last_error_message'] = error_message
-        self._save_json(self.MAPPINGS_FILE, self._mappings)
+        save_json(self.MAPPINGS_FILE, self._mappings)
 
     def record_mapping_with_error(self, structural_element, item_id, success,
                                   error_category, error_message, source_context=''):
@@ -219,10 +162,10 @@ class LearningEngine:
             cats = rec.setdefault('error_categories', {})
             cats[error_category] = cats.get(error_category, 0) + 1
             rec['last_error_message'] = error_message
-            self._save_json(self.MAPPINGS_FILE, self._mappings)
+            save_json(self.MAPPINGS_FILE, self._mappings)
 
     def get_reliable_mapping(self, structural_element):
-        """Р’РµСЂРЅСѓС‚СЊ РїСЂРѕРІРµСЂРµРЅРЅС‹Р№ item_id РёР»Рё None.
+        """Вернуть проверенный item_id или None.
 
         РќР°РґС‘Р¶РЅС‹Рј СЃС‡РёС‚Р°РµС‚СЃСЏ РјР°РїРїРёРЅРі, РіРґРµ ``success_count > fail_count`` Рё
         ``success_count >= 1`` (С‚.Рµ. С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ СѓСЃРїРµС€РЅС‹Р№ РѕРїС‹С‚).
@@ -239,7 +182,7 @@ class LearningEngine:
         return None
 
     def get_reliable_mappings(self, structural_elements):
-        """РџР°РєРµС‚РЅС‹Р№ Р·Р°РїСЂРѕСЃ РїСЂРѕРІРµСЂРµРЅРЅС‹С… РјР°РїРїРёРЅРіРѕРІ."""
+        """Пакетный запрос проверенных маппингов."""
         result = {}
         for se in structural_elements:
             mapped = self.get_reliable_mapping(se)
@@ -251,10 +194,10 @@ class LearningEngine:
         return copy.deepcopy(self._mappings)
 
     # ------------------------------------------------------------------
-    # 3. РћР±СЂР°С‚РЅР°СЏ СЃРІСЏР·СЊ РїРѕ РїСЂРѕРјРїС‚Р°Рј
+    # 3. Обратная связь по промптам
     # ------------------------------------------------------------------
     def record_prompt_feedback(self, stage, prompt_hash, success, notes=''):
-        """Р—Р°РїРёСЃР°С‚СЊ СЌС„С„РµРєС‚РёРІРЅРѕСЃС‚СЊ РїСЂРѕРјРїС‚Р° РґР»СЏ СЌС‚Р°РїР° (``stage`` вЂ” 1..4)."""
+        """Записать эффективность промпта для этапа (``stage`` — 1..4)."""
         key = f"{stage}:{prompt_hash}"
         if key not in self._prompt_feedback:
             self._prompt_feedback[key] = {
@@ -274,10 +217,10 @@ class LearningEngine:
                 'timestamp': datetime.now().isoformat(),
                 'text': notes,
             })
-        self._save_json(self.PROMPT_FEEDBACK_FILE, self._prompt_feedback)
+        save_json(self.PROMPT_FEEDBACK_FILE, self._prompt_feedback)
 
     def get_best_prompts(self, stage, top_n=3):
-        """РўРѕРї-N СЃР°РјС‹С… СЌС„С„РµРєС‚РёРІРЅС‹С… РїСЂРѕРјРїС‚РѕРІ РґР»СЏ СЌС‚Р°РїР°."""
+        """Топ-N самых эффективных промптов для этапа."""
         candidates = []
         for key, rec in self._prompt_feedback.items():
             if rec.get('stage') == stage:
@@ -323,7 +266,7 @@ class LearningEngine:
     # ------------------------------------------------------------------
     def record_verification_result(self, run_timestamp, source_npa_id,
                                    target_npa_id, verification):
-        """РЎРѕС…СЂР°РЅРёС‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚ РїРѕР»РЅРѕР№ РІРµСЂРёС„РёРєР°С†РёРё РґР»СЏ Р·Р°РїСѓСЃРєР°."""
+        """Сохранить результат полной верификации для запуска."""
         entry = {
             'timestamp': run_timestamp,
             'source_npa_id': str(source_npa_id),
@@ -335,13 +278,13 @@ class LearningEngine:
             'change_outcomes': verification.get('change_outcomes', []) if verification else [],
         }
         self._verification_log.append(entry)
-        self._save_json(self.VERIFICATION_LOG_FILE, self._verification_log)
+        save_json(self.VERIFICATION_LOG_FILE, self._verification_log)
         return entry
 
     def record_change_outcome(self, structural_element, change_type, applied,
                               structurally_valid, error_category=None,
                               error_message=None, source_context=''):
-        """Р—Р°РїРёСЃР°С‚СЊ РёСЃС…РѕРґ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ изменения (РїРѕСЃР»Рµ РїСЂРёРјРµРЅРµРЅРёСЏ + РІРµСЂРёС„РёРєР°С†РёРё)."""
+        """Записать исход конкретного изменения (после применения + верификации)."""
         entry = {
             'timestamp': datetime.now().isoformat(),
             'structural_element': structural_element,
@@ -353,14 +296,14 @@ class LearningEngine:
             'source_context': source_context,
         }
         self._change_outcomes.append(entry)
-        self._save_json(self.CHANGE_OUTCOMES_FILE, self._change_outcomes)
+        save_json(self.CHANGE_OUTCOMES_FILE, self._change_outcomes)
 
     # ------------------------------------------------------------------
-    # 5. РЎРёСЃС‚РµРјР° РѕР±СЂР°С‚РёРјС‹С… РёСЃРїСЂР°РІР»РµРЅРёР№ (recovery)
+    # 5. Система обратимых исправлений (recovery)
     # ------------------------------------------------------------------
     def record_recovery(self, structural_element, error_category, suggestion,
                         success, source_context=''):
-        """Р—Р°РїРёСЃР°С‚СЊ, СЃСЂР°Р±РѕС‚Р°Р»Рѕ Р»Рё РїСЂРµРґР»РѕР¶РµРЅРЅРѕРµ РѕР±С…РѕРґРЅРѕРµ СЂРµС€РµРЅРёРµ."""
+        """Записать, сработало ли предложенное обходное решение."""
         key = f"{structural_element}||{error_category}"
         existing = None
         for entry in self._recovery_log:
@@ -385,7 +328,7 @@ class LearningEngine:
             existing['fail_count'] += 1
         existing['last_used'] = datetime.now().isoformat()
         existing['suggestion'] = suggestion
-        self._save_json(self.RECOVERY_LOG_FILE, self._recovery_log)
+        save_json(self.RECOVERY_LOG_FILE, self._recovery_log)
 
     def get_recovery_suggestion(self, structural_element, error_category):
         """Р’РµСЂРЅСѓС‚СЊ РїСЂРѕРІРµСЂРµРЅРЅРѕРµ РѕР±С…РѕРґРЅРѕРµ СЂРµС€РµРЅРёРµ РґР»СЏ СЃРѕС‡РµС‚Р°РЅРёСЏ СЌР»РµРјРµРЅС‚+ошибка."""
@@ -399,10 +342,10 @@ class LearningEngine:
         return None
 
     # ------------------------------------------------------------------
-    # 6. РђРЅР°Р»РёР· РїР°С‚С‚РµСЂРЅРѕРІ РїСЂРѕРІР°Р»РѕРІ в†’ СѓР»СѓС‡С€РµРЅРёРµ Р°Р»РіРѕСЂРёС‚РјР°
+    # 6. Анализ паттернов провалов → улучшение алгоритма
     # ------------------------------------------------------------------
     def get_failure_patterns(self, limit=20):
-        """РЎРіСЂСѓРїРїРёСЂРѕРІР°С‚СЊ РёСЃС‚РѕСЂРёС‡РµСЃРєРёРµ РѕС€РёР±РєРё Рё РІРµСЂРЅСѓС‚СЊ СЂРµРєРѕРјРµРЅРґР°С†РёРё.
+        """Сгруппировать исторические ошибки и вернуть рекомендации.
 
         Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РїР°С‚С‚РµСЂРЅРѕРІ:
         ``{"structural_element", "error_category", "count", "suggestion"}``.
@@ -435,9 +378,9 @@ class LearningEngine:
         if category in ('item_id_duplicate',):
             suggestions.append('Р”РѕР±Р°РІРёС‚СЊ СЃСѓС„С„РёРєСЃ _double_N Рє РєРѕРЅС„Р»РёРєС‚СѓСЋС‰РµРјСѓ item_id')
         if category in ('child_ref_broken', 'child_ref_missing'):
-            suggestions.append('РЎРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°С‚СЊ child_ref РІ body СЃ item_children РїРѕСЃР»Рµ РїСЂРёРјРµРЅРµРЅРёСЏ')
+            suggestions.append('Синхронизировать child_ref в body с item_children после применения')
         if category in ('item_level_invalid',):
-            suggestions.append('РџРµСЂРµСЃС‡РёС‚Р°С‚СЊ item_level РґР»СЏ РІСЃРµС… РїРѕС‚РѕРјРєРѕРІ РїРѕ РіР»СѓР±РёРЅРµ РґРµСЂРµРІР°')
+            suggestions.append('Пересчитать item_level для всех потомков по глубине дерева')
         if category in ('date_format_invalid', 'date_continuity'):
             suggestions.append('РџСЂРѕРІРµСЂРёС‚СЊ формат РґР°С‚ DD.MM.Y Рё РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ valid_to = valid_from - 1 РґРµРЅСЊ')
         if category in ('modified_by_id_format',):
@@ -546,11 +489,11 @@ class LearningEngine:
         return '\n'.join(lines)
 
     # ------------------------------------------------------------------
-    # 8. РҐР°СЂР°РєС‚РµСЂРЅС‹Рµ РїСЂРёРјРµСЂС‹ ошибок
+    # 8. Характерные примеры ошибок
     # ------------------------------------------------------------------
     def record_error_example(self, structural_element, error_category, error_message,
                              context=None, source_npa_id='', target_npa_id=''):
-        """Р—Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ С…Р°СЂР°РєС‚РµСЂРЅС‹Р№ РїСЂРёРјРµСЂ РѕС€РёР±РєРё РґР»СЏ РѕР±СѓС‡РµРЅРёСЏ.
+        """Зафиксировать характерный пример ошибки для обучения.
 
         Parameters
         ----------
@@ -565,7 +508,7 @@ class LearningEngine:
         source_npa_id : str
             РР·РјРµРЅСЏСЋС‰РёР№ РќРџРђ.
         target_npa_id : str
-            Р¦РµР»РµРІРѕР№ РќРџРђ.
+            Целевой НПА.
         """
         entry = {
             'timestamp': datetime.now().isoformat(),
@@ -577,7 +520,7 @@ class LearningEngine:
             'context': context or {},
         }
         self._error_examples.append(entry)
-        self._save_json(self.ERROR_EXAMPLES_FILE, self._error_examples)
+        save_json(self.ERROR_EXAMPLES_FILE, self._error_examples)
 
     def get_error_examples(self, structural_element=None, error_category=None, limit=50):
         """Р’РµСЂРЅСѓС‚СЊ С…Р°СЂР°РєС‚РµСЂРЅС‹Рµ РїСЂРёРјРµСЂС‹ ошибок СЃ С„РёР»СЊС‚СЂР°С†РёРµР№."""
@@ -590,12 +533,12 @@ class LearningEngine:
         return result[:limit]
 
     # ------------------------------------------------------------------
-    # 9. РћС‚СЃР»РµР¶РёРІР°РЅРёРµ РёСЃРїСЂР°РІР»РµРЅРёР№ Р±Р°РіРѕРІ
+    # 9. Отслеживание исправлений багов
     # ------------------------------------------------------------------
     def record_bug_fix(self, bug_description, fix_description, applied_to=None,
                        verification_before=None, verification_after=None,
                        source_npa_id='', target_npa_id='', success=True):
-        """Р—Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ РёСЃРїСЂР°РІР»РµРЅРёРµ Р±Р°РіР°, РѕР±РЅР°СЂСѓР¶РµРЅРЅРѕРіРѕ Рё РїСЂРёРјРµРЅС‘РЅРЅРѕРіРѕ Р°РіРµРЅС‚РѕРј.
+        """Зафиксировать исправление бага, обнаруженного и применённого агентом.
 
         Parameters
         ----------
@@ -612,7 +555,7 @@ class LearningEngine:
         source_npa_id : str
             РР·РјРµРЅСЏСЋС‰РёР№ РќРџРђ.
         target_npa_id : str
-            Р¦РµР»РµРІРѕР№ РќРџРђ.
+            Целевой НПА.
         success : bool
             Р‘С‹Р»Рѕ Р»Рё РёСЃРїСЂР°РІР»РµРЅРёРµ СѓСЃРїРµС€РЅС‹Рј.
         """
@@ -628,16 +571,16 @@ class LearningEngine:
             'success': success,
         }
         self._bug_fixes.append(entry)
-        self._save_json(self.BUG_FIXES_FILE, self._bug_fixes)
+        save_json(self.BUG_FIXES_FILE, self._bug_fixes)
 
     def get_bug_fixes(self, limit=20):
-        """Р’РµСЂРЅСѓС‚СЊ РїРѕСЃР»РµРґРЅРёРµ РёСЃРїСЂР°РІР»РµРЅРёСЏ Р±Р°РіРѕРІ."""
+        """Вернуть последние исправления багов."""
         result = list(self._bug_fixes)
         result.sort(key=lambda e: e.get('timestamp', ''), reverse=True)
         return result[:limit]
 
     def get_bug_fixes_stats(self):
-        """Р’РµСЂРЅСѓС‚СЊ Р°РіСЂРµРіРёСЂРѕРІР°РЅРЅСѓСЋ СЃС‚Р°С‚РёСЃС‚РёРєСѓ РїРѕ РёСЃРїСЂР°РІР»РµРЅРёСЏРј."""
+        """Вернуть агрегированную статистику по исправлениям."""
         total = len(self._bug_fixes)
         successful = sum(1 for b in self._bug_fixes if b.get('success'))
         categories = defaultdict(int)
@@ -675,7 +618,7 @@ class LearningEngine:
         subcategory : str | None
             Р¤РёР»СЊС‚СЂ РїРѕ РїРѕРґРєР°С‚РµРіРѕСЂРёРё (РЅР°РїСЂРёРјРµСЂ, ``"replacement"``).
         limit : int
-            РњР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРёРјРµСЂРѕРІ.
+            Максимальное количество примеров.
 
         Returns
         -------
@@ -690,7 +633,7 @@ class LearningEngine:
         return result[:limit]
 
     def get_training_context_for_highlights(self, max_examples=5):
-        """РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ Р±Р»РѕРє С‚РµРєСЃС‚Р° СЃ С…Р°СЂР°РєС‚РµСЂРЅС‹РјРё РїСЂРёРјРµСЂР°РјРё РїРѕРґСЃРІРµС‚РєРё РґР»СЏ РїСЂРѕРјРїС‚Р° 4."""
+        """Сформировать блок текста с характерными примерами подсветки для промпта 4."""
         examples = self.get_seed_examples(category='highlights', limit=max_examples)
         if not examples:
             return ""
@@ -717,7 +660,7 @@ class LearningEngine:
         return '\n'.join(lines)
 
     def get_prompt_supplement(self, stage=4):
-        """Р’РµСЂРЅСѓС‚СЊ РґРѕРїРѕР»РЅРµРЅРёРµ Рє РїСЂРѕРјРїС‚Сѓ РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ СЌС‚Р°РїР°."""
+        """Вернуть дополнение к промпту для конкретного этапа."""
         if stage == 4:
             return self.get_training_context_for_highlights()
         if stage == 3:
