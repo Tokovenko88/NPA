@@ -4,7 +4,7 @@ Chain Pipeline Processor
 Sequentially applies multiple NPA amendments to a target NPA.
 
 Each amendment is applied in chronological order (oldest number -> newest number).
-For each step, the pipeline is executed and the intermediate result is saved
+For each step, the pipeline is executed in-process and the intermediate result is saved
 to the chain results folder.
 
 Usage:
@@ -33,7 +33,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 
@@ -41,12 +40,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+from npa_processor._bootstrap import _bootstrap_project_root
+
+_bootstrap_project_root()
+
+from scripts.run_pipeline import main as run_pipeline_main  # noqa: E402
+
 # Standard working directories
 SOURCE_DIR = os.path.join(BASE_DIR, 'work', 'source')
 ANSWERS_DIR = os.path.join(BASE_DIR, 'work', 'answers')
 RESULT_DIR = os.path.join(BASE_DIR, 'work', 'results')
 CHAIN_RESULTS_DIR = os.path.join(BASE_DIR, 'work', 'chain_results')
-PIPELINE_SCRIPT = os.path.join(BASE_DIR, 'scripts', 'run_pipeline.py')
 REPORT_PATH = os.path.join(BASE_DIR, 'scripts', 'report.md')
 
 
@@ -162,28 +166,17 @@ def setup_working_dirs(target_path, source_path, answers_subdir=None):
 
 
 def run_single_pipeline(result_dir=None):
-    """Run run_pipeline.py as subprocess and return result path."""
-    cmd = [sys.executable, PIPELINE_SCRIPT]
+    """Run run_pipeline.main in-process and return result path."""
+    args = []
     if result_dir:
-        cmd.extend(['--result-dir', result_dir, '--keep-previous'])
+        args.extend(['--result-dir', result_dir, '--keep-previous'])
 
-    process = subprocess.Popen(
-        cmd,
-        cwd=BASE_DIR,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        universal_newlines=True,
-    )
-
-    for line in process.stdout:
-        print(line, end='')
-
-    process.wait()
-
-    if process.returncode != 0:
-        log(f"Pipeline exited with code {process.returncode}", 'error')
+    try:
+        run_pipeline_main(args)
+    except SystemExit:
+        pass
+    except Exception as e:
+        log(f"Pipeline raised exception: {e}", 'error')
         return None
 
     search_dir = result_dir if result_dir else RESULT_DIR

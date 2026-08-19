@@ -108,11 +108,7 @@ def find_item_by_revision_number(change_data, rev_number, context_root=None):
     return result
 
 def _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback,
-                             structural_element='', manual_resolver=None, stop_event=None, context_root=None):
-    if stop_event and stop_event.is_set():
-        if log_callback:
-            log_callback("  _resolve_modified_by_ids: остановка", 'warning')
-        return None
+                             structural_element='', context_root=None):
     if not rev_number or (isinstance(rev_number, str) and rev_number.lower() == 'null') or rev_number == []:
         if source_item_id:
             if log_callback:
@@ -123,12 +119,6 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
                 log_callback("  revision_number отсутствует и нет source_item_id", 'warning')
             return None
     modified_by_ids = []
-    def resolve_single(rev, stop_event=None):
-        if stop_event and stop_event.is_set():
-            return None
-        if manual_resolver:
-            return manual_resolver(rev, stop_event, structural_element)
-        return None
     def find_id_for_rev(rev):
         if not rev or (isinstance(rev, str) and rev.lower() == 'null'):
             return None
@@ -144,25 +134,15 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
         return find_item_by_revision_number(change_data, rev, context_root=context_root)
     if isinstance(rev_number, list):
         for rev in rev_number:
-            if stop_event and stop_event.is_set():
-                return None
             found_id = find_id_for_rev(rev)
             if found_id:
                 found_id = narrow_source_id_to_subpoint(found_id, structural_element, change_data, log_callback)
                 modified_by_ids.append(found_id)
-            else:
-                manual_id = resolve_single(rev, stop_event)
-                if manual_id:
-                    modified_by_ids.append(manual_id)
     elif rev_number and isinstance(rev_number, str) and rev_number.lower() != 'null':
         found_id = find_id_for_rev(rev_number)
         if found_id:
             found_id = narrow_source_id_to_subpoint(found_id, structural_element, change_data, log_callback)
             modified_by_ids.append(found_id)
-        else:
-            manual_id = resolve_single(rev_number, stop_event)
-            if manual_id:
-                modified_by_ids.append(manual_id)
     if not modified_by_ids:
         if log_callback:
             log_callback(f"  Не удалось найти элемент по revision_number {rev_number}", 'error')

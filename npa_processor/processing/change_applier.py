@@ -63,12 +63,8 @@ def _find_paragraph_by_content(paragraphs, search_text, log_callback=None):
 
 def apply_grouped_changes(element, changes, valid_from, change_data, data, log_callback,
                           rebuild_ids, extra_options, source_item_id=None,
-                          stop_event=None, manual_resolver=None, source_context_root=None):
+                          source_context_root=None):
     from npa_processor.processing.revision_builder import _merge_highlights_with_paragraph_prefix
-    if stop_event and stop_event.is_set():
-        if log_callback:
-            log_callback("  apply_grouped_changes: остановка", 'warning')
-        return False
     if log_callback:
         log_callback(f"Применение группы из {len(changes)} изменений к элементу {element.get('item_id')}", 'info')
     if any(c.get('type') == 'new_redaction' for c in changes):
@@ -100,7 +96,7 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
             modified_by_id_str = _resolve_modified_by_ids(
                 rev_number, change_data, None, source_item_id, log_callback,
                 structural_element=ch.get('structural_element', ''),
-                manual_resolver=manual_resolver, stop_event=stop_event,
+
                 context_root=source_context_root
             )
             if modified_by_id_str is None:
@@ -408,7 +404,7 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
     modified_by_id_str = _resolve_modified_by_ids(
         changes[0].get('revision_number'), change_data, None, source_item_id, log_callback,
         structural_element=changes[0].get('structural_element', ''),
-        manual_resolver=manual_resolver, stop_event=stop_event,
+
         context_root=source_context_root
     )
     if modified_by_id_str is None:
@@ -439,7 +435,7 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
 
 def apply_change(change, data, change_data, law_ref, general_valid_from, log_callback,
                  source_item_id=None, rebuild_ids=None,
-                 doc_type='law', extra_options=None, stop_event=None, manual_resolver=None,
+                 doc_type='law', extra_options=None,
                  source_context_root=None, ambiguous_callback=None):
     if rebuild_ids is None:
         rebuild_ids = []
@@ -447,12 +443,10 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
         resolved_target_id = change['_resolved_item_id']
         if resolved_target_id == '__наименование__':
             return _apply_change_to_head(change, data, change_data, general_valid_from, change.get('revision_number'),
-                                         None, source_item_id, log_callback, extra_options, stop_event,
-                                         manual_resolver, source_context_root)
+                                         None, source_item_id, log_callback, extra_options, source_context_root)
         elif resolved_target_id == '__преамбула__':
             return _apply_change_to_preamble(change, data, change_data, general_valid_from, change.get('revision_number'),
-                                              None, source_item_id, log_callback, extra_options, stop_event,
-                                              manual_resolver, source_context_root, rebuild_ids)
+                                              None, source_item_id, log_callback, extra_options, source_context_root, rebuild_ids)
         elif resolved_target_id is None:
             structural = change.get('structural_element', '').strip()
             ch_type = change.get('type', '').strip()
@@ -484,7 +478,7 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
                         return False
                     if not cleaned_html:
                         cleaned_html = source_html
-                    modified_by_id_str = _resolve_modified_by_ids(change.get('revision_number'), change_data, None, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+                    modified_by_id_str = _resolve_modified_by_ids(change.get('revision_number'), change_data, None, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
                     if modified_by_id_str is None:
                         modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
                     valid_from_date = general_valid_from
@@ -507,7 +501,7 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
             if not tokens:
                 log_callback(f"  Не удалось разобрать путь для add: {structural}", 'error')
                 return False
-            modified_by_id_str = _resolve_modified_by_ids(change.get('revision_number'), change_data, None, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+            modified_by_id_str = _resolve_modified_by_ids(change.get('revision_number'), change_data, None, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
             if modified_by_id_str is None:
                 modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
             valid_from_date = general_valid_from
@@ -572,7 +566,7 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
                     valid_from = general_valid_from
             else:
                 valid_from = general_valid_from
-            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, None, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, None, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
             if not modified_by_id_str:
                 modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
             structural_lower_check = structural.lower()
@@ -580,9 +574,9 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
                 source_element_local = find_item_by_id(change_data, source_item_id) if source_item_id else None
                 return _apply_change_to_element_head(change, data, change_data, valid_from, rev_number,
                                                           source_element_local, source_item_id, log_callback,
-                                                          extra_options, stop_event, manual_resolver,
+                                                          extra_options,
                                                           source_context_root, rebuild_ids)
-            return _apply_change_to_element_content(target_element, ch_type, description, valid_from, modified_by_id_str, extra_options, stop_event, log_callback, rebuild_ids, structural, source_context_root, change_data, data, None, source_item_id, rev_number, change, manual_resolver)
+            return _apply_change_to_element_content(target_element, ch_type, description, valid_from, modified_by_id_str, extra_options, log_callback, rebuild_ids, structural, source_context_root, change_data, data, None, source_item_id, rev_number, change)
     structural = change.get('structural_element', '').strip()
     ch_type = change.get('type', '').strip()
     description = change.get('description', '')
@@ -606,19 +600,19 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
     if structural_lower.endswith(' префикс'):
         return _apply_change_to_appendix_prefix(change, data, change_data, valid_from, rev_number,
                                                  source_element, source_item_id, log_callback,
-                                                 extra_options, stop_event, manual_resolver,
+                                                 extra_options,
                                                  source_context_root, rebuild_ids)
     if structural_lower == "наименование":
-        return _apply_change_to_head(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, stop_event, manual_resolver, source_context_root)
+        return _apply_change_to_head(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, source_context_root)
     if structural_lower.endswith(' наименование') and structural_lower != 'наименование':
         element_part = structural[:-len(' наименование')].strip()
         change_copy = change.copy()
         change_copy['structural_element'] = f"наименование {element_part}"
-        return _apply_change_to_element_head(change_copy, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, stop_event, manual_resolver, source_context_root, rebuild_ids)
+        return _apply_change_to_element_head(change_copy, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, source_context_root, rebuild_ids)
     if structural_lower.startswith('наименование '):
-        return _apply_change_to_element_head(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, stop_event, manual_resolver, source_context_root, rebuild_ids)
+        return _apply_change_to_element_head(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, source_context_root, rebuild_ids)
     if structural_lower == "преамбула":
-        return _apply_change_to_preamble(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, stop_event, manual_resolver, source_context_root, rebuild_ids)
+        return _apply_change_to_preamble(change, data, change_data, valid_from, rev_number, source_element, source_item_id, log_callback, extra_options, source_context_root, rebuild_ids)
     if ch_type == 'add':
         if 'new' in change and change['new']:
             ru_type, child_num = parse_add_new_field(change['new'])
@@ -654,7 +648,7 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
                 return False
             if not cleaned_html:
                 cleaned_html = source_html
-            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
             if modified_by_id_str is None:
                 modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
             new_id = _add_new_element(parent_element, sys_type, child_num, cleaned_html, modified_by_id_str, valid_from, data, log_callback, rebuild_ids, ambiguous_callback, level_hint=2)
@@ -664,7 +658,7 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
             if not tokens:
                 log_callback(f"  Не удалось разобрать путь для add: {structural}", 'error')
                 return False
-            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+            modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
             if modified_by_id_str is None:
                 modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
             if '_quoted_html' in change:
@@ -699,14 +693,14 @@ def apply_change(change, data, change_data, law_ref, general_valid_from, log_cal
     if target_element is None:
         log_callback(f"  Не найден или неоднозначен элемент для изменения: {structural}. Изменение пропущено.", 'warning')
         return False
-    modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event, context_root=source_context_root)
+    modified_by_id_str = _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback, structural_element=structural,  context_root=source_context_root)
     if not modified_by_id_str:
         modified_by_id_str = (source_item_id or str(change_data.get('npa_id', 'unknown')))
-    return _apply_change_to_element_content(target_element, ch_type, description, valid_from, modified_by_id_str, extra_options, stop_event, log_callback, rebuild_ids, structural, source_context_root, change_data, data, source_element, source_item_id, rev_number, change, manual_resolver)
+    return _apply_change_to_element_content(target_element, ch_type, description, valid_from, modified_by_id_str, extra_options, log_callback, rebuild_ids, structural, source_context_root, change_data, data, source_element, source_item_id, rev_number, change)
 
 def _apply_change_to_appendix_prefix(change, data, change_data, valid_from, rev_number,
                                       source_element, source_item_id, log_callback,
-                                      extra_options, stop_event, manual_resolver,
+                                      extra_options,
                                       source_context_root, rebuild_ids):
     structural = change.get('structural_element', '')
     ch_type = change.get('type', '')
@@ -775,7 +769,7 @@ def _apply_change_to_appendix_prefix(change, data, change_data, valid_from, rev_
         mod_type = 'change'
     modified_by_id_str = _resolve_modified_by_ids(
         rev_number, change_data, source_element, source_item_id, log_callback,
-        structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event,
+        structural_element=structural,
         context_root=source_context_root
     )
     if not modified_by_id_str:
@@ -796,7 +790,7 @@ def _apply_change_to_appendix_prefix(change, data, change_data, valid_from, rev_
 
 def _apply_change_to_head(change, data, change_data, valid_from, rev_number,
                           source_element, source_item_id, log_callback,
-                          extra_options, stop_event, manual_resolver,
+                          extra_options,
                           source_context_root):
     ch_type = change.get('type')
     highlights = change.get('highlights', None)
@@ -867,7 +861,7 @@ def _apply_change_to_head(change, data, change_data, valid_from, rev_number,
     valid_to_str = close_revision_date(valid_from)
     modified_by_id_str = _resolve_modified_by_ids(
         rev_number, change_data, source_element, source_item_id, log_callback,
-        structural_element=change.get('structural_element', ''), manual_resolver=manual_resolver, stop_event=stop_event,
+        structural_element=change.get('structural_element', ''),
         context_root=source_context_root)
     if modified_by_id_str is None:
         if log_callback:
@@ -889,7 +883,7 @@ def _apply_change_to_head(change, data, change_data, valid_from, rev_number,
 
 def _apply_change_to_element_head(change, data, change_data, valid_from, rev_number,
                                     source_element, source_item_id, log_callback,
-                                    extra_options, stop_event, manual_resolver,
+                                    extra_options,
                                     source_context_root, rebuild_ids):
     structural = change.get('structural_element', '').strip()
     ch_type = change.get('type', '').strip()
@@ -912,7 +906,7 @@ def _apply_change_to_element_head(change, data, change_data, valid_from, rev_num
         return False
     modified_by_id_str = _resolve_modified_by_ids(
         rev_number, change_data, source_element, source_item_id, log_callback,
-        structural_element=structural, manual_resolver=manual_resolver, stop_event=stop_event,
+        structural_element=structural,
         context_root=source_context_root)
     if modified_by_id_str is None:
         log_callback("  Не удалось определить modified_by_id для наименования элемента", 'error')
@@ -985,7 +979,7 @@ def _apply_change_to_element_head(change, data, change_data, valid_from, rev_num
 
 def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
                                 source_element, source_item_id, log_callback,
-                                extra_options, stop_event, manual_resolver,
+                                extra_options,
                                 source_context_root, rebuild_ids):
     from npa_processor.processing.revision_builder import extract_child_refs_from_revision
     ch_type = change.get('type', '').strip()
@@ -1018,7 +1012,7 @@ def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
     old_rev = revisions[active_idx] if active_idx >= 0 else None
     modified_by_id_str = _resolve_modified_by_ids(
         rev_number, change_data, source_element, source_item_id, log_callback,
-        structural_element=change.get('structural_element', ''), manual_resolver=manual_resolver, stop_event=stop_event,
+        structural_element=change.get('structural_element', ''),
         context_root=source_context_root)
     if modified_by_id_str is None:
         if log_callback:
@@ -1104,10 +1098,10 @@ def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
 
 def _apply_change_to_element_content(element, ch_type, description, valid_from,
                                       modified_by_id_str, extra_options,
-                                      stop_event, log_callback, rebuild_ids,
+                                      log_callback, rebuild_ids,
                                       structural, source_context_root, change_data, data,
                                       source_element, source_item_id, rev_number,
-                                      change, manual_resolver=None):
+                                      change=None):
     from npa_processor.processing.revision_builder import extract_child_refs_from_revision
     if 'revisions' not in element:
         element['revisions'] = [{'body': []}]

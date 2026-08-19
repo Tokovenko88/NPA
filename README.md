@@ -33,6 +33,20 @@ npa_processor/           - Core processing engine (in git)
 3. Run the agent following `AGENT_INSTRUCTION.md`
 4. Execute pipeline: `python -m npa_processor` or `python scripts/run_pipeline.py`
 
+### CLI Flags
+
+```bash
+python scripts/run_pipeline.py --source path/to/source.json --target path/to/target.json --dry-run --stage 3
+```
+
+- `--source` — path to source NPA JSON (default: `work/source/source_npa.json`)
+- `--target` — path to target NPA JSON (default: `work/source/target_npa.json`)
+- `--dry-run` — validate and plan changes without writing output
+- `--stage N` — run only up to specified stage (1-5)
+- `--result-dir` — custom result directory (default: `work/results`)
+- `--keep-previous` — do not delete previous results
+- `--strict` — abort on ambiguous element resolution
+
 ### Chain Pipeline
 
 To apply multiple amendments sequentially:
@@ -41,6 +55,12 @@ To apply multiple amendments sequentially:
 2. Prepare stage answers for each amendment (optional)
 3. Run: `python scripts/chain_pipeline.py <input_folder>`
 4. Intermediate results are saved in `work/chain_results/`
+
+### JSON Schema
+
+Formal JSON schemas are available in `schema/`:
+- `npa_schema.json` — structure of NPA documents
+- `stage3_answer_schema.json` — structure of stage 3 changes extraction answers
 
 ## Self-Learning
 

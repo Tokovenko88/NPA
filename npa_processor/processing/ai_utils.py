@@ -3,12 +3,12 @@
 import json
 import os
 
+from npa_processor._bootstrap import _bootstrap_project_root
 from npa_processor.processing.text_utils import strip_thinking_tags
 
-ANSWERS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    '..', 'work', 'answers'
-)
+_bootstrap_project_root()
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+ANSWERS_DIR = os.path.join(PROJECT_ROOT, 'work', 'answers')
 
 _stage4_usage_counters = {}
 

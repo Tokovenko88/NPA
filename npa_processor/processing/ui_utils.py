@@ -149,7 +149,7 @@ def split_range_changes(changes, log_callback=None):
                 _log(f"    -> создан объект: structural_element='{new_structural}', description длина {len(new_ch['description'])}")
     return result
 
-def _correct_change_description(ch, change_data, target_element, log_callback, manual_resolver=None, stop_event=None):
+def _correct_change_description(ch, change_data, target_element, log_callback):
     ch_type = ch.get('type', '')
     if ch_type == 'delete':
         return True
@@ -163,47 +163,17 @@ def _correct_change_description(ch, change_data, target_element, log_callback, m
         source_element = _find_element_by_revision_path(target_element, rev_number)
         if not source_element:
             structural_info = ch.get('structural_element', 'неизвестно')
-            log_callback(f"  {ch_type}: Не удалось найти элемент по пути revision_number '{rev_number}' для изменения '{structural_info}'. Вызов ручного выбора...", 'warning')
-            if manual_resolver:
-                try:
-                    item_id = manual_resolver(rev_number, stop_event, structural_info)
-                    if item_id:
-                        source_element = find_item_by_id(change_data, item_id)
-                        if source_element:
-                            log_callback(f"  {ch_type}: Пользователь выбрал элемент с ID {item_id}", 'result')
-                except Exception as e:
-                    log_callback(f"  Ошибка при ручном выборе: {e}", 'error')
-                    return False
-            if not source_element:
-                err_msg = (f"КРИТИЧЕСКАЯ ОШИБКА: {ch_type}: Не удалось найти элемент по revision_number '{rev_number}' "
-                           f"и ручной выбор не выполнен/отменён!")
-                log_callback(err_msg, 'error')
-                return False
+            log_callback(f"  {ch_type}: Не удалось найти элемент по пути revision_number '{rev_number}' для изменения '{structural_info}'", 'warning')
+            err_msg = (f"КРИТИЧЕСКАЯ ОШИБКА: {ch_type}: Не удалось найти элемент по пути revision_number '{rev_number}' "
+                       f"для изменения '{structural_info}'")
+            log_callback(err_msg, 'error')
+            return False
         else:
             log_callback(f"  {ch_type}: Найден элемент по пути revision_number '{rev_number}' -> ID {source_element.get('item_id')}", 'info')
     full_html = get_full_element_html(source_element, include_header=False)
     if not full_html:
-        log_callback(f"  {ch_type}: В элементе {source_element.get('item_id')} нет HTML. Вызов ручного выбора...", 'warning')
-        if manual_resolver:
-            try:
-                structural_info = ch.get('structural_element', 'неизвестно')
-                item_id = manual_resolver(rev_number, stop_event, structural_info)
-                if item_id:
-                    manual_element = find_item_by_id(change_data, item_id)
-                    if manual_element:
-                        manual_html = get_full_element_html(manual_element, include_header=False)
-                        if manual_html:
-                            source_element = manual_element
-                            full_html = manual_html
-                            log_callback(f"  {ch_type}: Пользователь выбрал элемент с ID {item_id}, HTML найден", 'result')
-            except Exception as e:
-                log_callback(f"  Ошибка при ручном выборе: {e}", 'error')
-                return False
-        if not full_html:
-            err_msg = (f"КРИТИЧЕСКАЯ ОШИБКА: {ch_type}: В элементе ID {source_element.get('item_id')} "
-                       f"(путь {rev_number}) НЕТ HTML содержимого! Изменение невозможно применить!")
-            log_callback(err_msg, 'error')
-            return False
+        log_callback(f"  {ch_type}: В элементе {source_element.get('item_id')} нет HTML содержимого! Изменение невозможно применить!", 'error')
+        return False
     ch['_quoted_html'] = full_html
     log_callback(f"  {ch_type}: сохранён полный HTML источника (длина {len(full_html)}) для последующего извлечения абзацев", 'source')
     return True
@@ -1231,7 +1201,7 @@ def insert_child_in_order(parent, new_child, log_callback=None):
     children.insert(insert_idx, new_child)
     parent['item_children'] = children
 
-def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_str, doc_type='law', log_callback=None, log_queue=None, answer_queue=None):
+def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_str, doc_type='law', log_callback=None):
     def _log(msg, tag='info'):
         if log_callback:
             log_callback(msg, tag)
@@ -1360,9 +1330,7 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
         fragment_element_id=fragment_element_id,
         root_number=root_number,
         root_type=root_type,
-        log_queue=log_queue,
-        is_table_child=is_table_child,
-        answer_queue=answer_queue
+        is_table_child=is_table_child
     )
     new_toc_items, ambiguous = temp_gen.generate_toc()
     if not new_toc_items:

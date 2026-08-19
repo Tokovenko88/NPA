@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stage 3 Changes Extraction Answer",
+  "description": "Структура ответа этапа 3 (извлечение изменений)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["type", "structural_element"],
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": ["add", "delete", "change", "new_redaction"]
+      },
+      "structural_element": {
+        "type": "string",
+        "description": "Путь к элементу в формате 'Тип N' или 'Тип N часть M пункт K'"
+      },
+      "revision_number": {
+        "type": ["string", "number", "array", "null"],
+        "description": "ID элемента-источника в изменяющем НПА"
+      },
+      "description": {
+        "type": "string",
+        "description": "Описание изменения или HTML-содержимое"
+      },
+      "new": {
+        "type": "string",
+        "description": "Новое значение для type=add (например, 'пункт 5')"
+      },
+      "valid_from": {
+        "type": "string",
+        "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+        "description": "Дата вступления в силу изменения"
+      },
+      "highlights": {
+        "type": "object",
+        "description": "Координаты изменений в HTML"
+      },
+      "_paragraph_num": {
+        "type": "integer",
+        "description": "Номер абзаца для paragraph-операций"
+      }
+    }
+  }
+}

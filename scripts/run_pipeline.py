@@ -14,7 +14,6 @@ import re
 import sys
 import time
 from datetime import datetime, timedelta
-from threading import Event
 
 from bs4 import BeautifulSoup
 
@@ -112,10 +111,8 @@ def _validate_stage3_changes(changes, log_callback):
                 r'абзацы\s+\d+',
                 r'части\s+\d+',
             ]
-            for pat in plural_delete_patterns:
-                if re.search(pat, structural, re.IGNORECASE):
-                    break
-            else:
+            is_plural_delete = any(re.search(pat, structural, re.IGNORECASE) for pat in plural_delete_patterns)
+            if not is_plural_delete:
                 continue
             if ',' in structural or ' и ' in structural.lower():
                 errors.append(
@@ -298,7 +295,7 @@ def _load_stage_answers(name_prefix, log_callback=None):
 
 
 def _attempt_recover_change(change, result_data, source, valid_from_dt, source_item_id,
-                            rebuild_ids, stop_event, log_callback,
+                            rebuild_ids, log_callback,
                             learner, change_log_entry):
     """Попытаться восстановить проваленное изменение на основе истории самообучения.
 
@@ -333,7 +330,7 @@ def _attempt_recover_change(change, result_data, source, valid_from_dt, source_i
                 general_valid_from=valid_from_dt, log_callback=log_callback,
                 source_item_id=source_item_id,
                 rebuild_ids=rebuild_ids, doc_type='law', extra_options=None,
-                stop_event=stop_event, manual_resolver=None,
+
                 source_context_root=_find_target_element(source, result_data, log_callback, 'law')
                 if result_data.get('npa_items_revision') else source,
                 ambiguous_callback=None,
@@ -642,12 +639,27 @@ def main(args=None):
                         help='Do not delete previous results in the result directory')
     parser.add_argument('--strict', action='store_true',
                         help='Abort on ambiguous element resolution or missing data')
+    parser.add_argument('--source', help='Path to source NPA JSON (default: work/source/source_npa.json)')
+    parser.add_argument('--target', help='Path to target NPA JSON (default: work/source/target_npa.json)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Validate and plan changes without writing output')
+    parser.add_argument('--stage', type=int, choices=range(1, 6), default=None,
+                        help='Run only up to specified stage (1-5)')
     parsed = parser.parse_args(args)
 
     result_dir = RESULT_DIR
     if parsed.result_dir:
         result_dir = parsed.result_dir
         os.makedirs(result_dir, exist_ok=True)
+
+    source_path = parsed.source if parsed.source else os.path.join(SOURCE_DIR, 'source_npa.json')
+    target_path = parsed.target if parsed.target else os.path.join(SOURCE_DIR, 'target_npa.json')
+
+    if parsed.dry_run:
+        log("[DRY RUN] Режим проверки: изменения не будут записаны")
+
+    if parsed.stage:
+        log(f"[STAGE] Режим этапа: запуск до этапа {parsed.stage}")
 
     learner = LearningEngine()
     learner_stats = learner.get_stats()
@@ -662,8 +674,8 @@ def main(args=None):
             log(f"    - [{p['error_category']}] '{p['structural_element']}': "
                 f"{p['count']} raz -> {p['suggestion'][:100]}")
 
-    source = load_json(os.path.join(SOURCE_DIR, 'source_npa.json'))
-    target = load_json(os.path.join(SOURCE_DIR, 'target_npa.json'))
+    source = load_json(source_path)
+    target = load_json(target_path)
 
     valid_from_date_str = source.get('valid_from', '')
     if not valid_from_date_str:
@@ -685,7 +697,6 @@ def main(args=None):
     history.snapshot('initial', result_data, {'label': 'target NPA before changes'})
 
     rebuild_ids = []
-    stop_event = Event()
     errors = []
     warnings = []
     manual_corrections = []
@@ -699,8 +710,9 @@ def main(args=None):
     log(f"  Source context root: {source_context_root.get('item_id', 'root')}")
     source_item_id = source_context_root.get('item_id')
 
-    # ========== STAGE 1: Revocation Analysis ==========
-    log("Stage 1: Revocation analysis.")
+    if not parsed.stage or parsed.stage >= 1:
+        # ========== STAGE 1: Revocation Analysis ==========
+        log("Stage 1: Revocation analysis.")
     stage1_changes = _load_stage_answers('prompt_1_answer', log)
     stage1_applied = 0
     stage1_failed = 0
@@ -725,8 +737,9 @@ def main(args=None):
                                'description': ''} for c in stage1_changes]
     log(f"  Stage 1: {len(stage1_changes)} найдено, применено {stage1_applied}, провалено {stage1_failed}")
 
-    # ========== STAGE 2: Dates Analysis ==========
-    log("Stage 2: Dates and retroactive clauses analysis.")
+    if not parsed.stage or parsed.stage >= 2:
+        # ========== STAGE 2: Dates Analysis ==========
+        log("Stage 2: Dates and retroactive clauses analysis.")
     stage2_changes = _load_stage_answers('prompt_2_answer', log)
     stage2_applied = 0
     stage2_failed = 0
@@ -745,8 +758,9 @@ def main(args=None):
             errors.append(f"Stage 2 error: {str(e)}")
     log(f"  Stage 2: {len(stage2_changes)} найдено, применено {stage2_applied}, провалено {stage2_failed}")
 
-    # ========== STAGE 3: Changes Extraction ==========
-    all_changes = _load_stage_answers('prompt_3_answer', log)
+    if not parsed.stage or parsed.stage >= 3:
+        # ========== STAGE 3: Changes Extraction ==========
+        all_changes = _load_stage_answers('prompt_3_answer', log)
     log(f"Stage 3: Loaded {len(all_changes)} changes from prompt answers.")
 
     # Post-stage-3 validation: catch anti-patterns before applying
@@ -763,8 +777,9 @@ def main(args=None):
         [c.get('structural_element', '').strip() for c in all_changes if c.get('structural_element')]
     )
 
-    # ========== STAGE 4: Text Processing ==========
-    prompt_supplement = learner.get_prompt_supplement(stage=4)
+    if not parsed.stage or parsed.stage >= 4:
+        # ========== STAGE 4: Text Processing ==========
+        prompt_supplement = learner.get_prompt_supplement(stage=4)
     if prompt_supplement:
         log("  Подключены обучающие примеры подсветки из learning/seed_examples.json")
     log("Stage 4: Using pre-generated answers from work/answers/ for change-type modifications.")
@@ -776,8 +791,9 @@ def main(args=None):
     if reorg_applied:
         history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
 
-    # ========== STAGE 5: Apply Changes ==========
-    change_type_counts = {}
+    if not parsed.stage or parsed.stage >= 5:
+        # ========== STAGE 5: Apply Changes ==========
+        change_type_counts = {}
     for change in all_changes:
         ct = change.get('type', 'unknown')
         change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
@@ -835,8 +851,6 @@ def main(args=None):
                 rebuild_ids=rebuild_ids,
                 doc_type='law',
                 extra_options=None,
-                stop_event=stop_event,
-                manual_resolver=None,
                 source_context_root=source_context_root,
                 ambiguous_callback=None,
             )
@@ -867,7 +881,7 @@ def main(args=None):
                 # ---- CLOSED FEEDBACK: attempt recovery from learning ----
                 recovered = _attempt_recover_change(
                     change, result_data, source, valid_from_dt, source_item_id,
-                    rebuild_ids, stop_event, log,
+                    rebuild_ids, log,
                     learner, change_log[-1],
                 )
                 if recovered:
@@ -1024,7 +1038,7 @@ def main(args=None):
         ok = rebuild_element_with_history(
             result_data, element_id, valid_from_dt,
             rebuild_modified_by, 'law',
-            log_callback=log, answer_queue=None
+            log_callback=log
         )
         if ok:
             log(f"  Rebuilt: {element_id}")
@@ -1053,7 +1067,7 @@ def main(args=None):
             ok = rebuild_element_with_history(
                 result_data, element_id, valid_from_dt,
                 rebuild_modified_by, 'law',
-                log_callback=log, answer_queue=None
+                log_callback=log
             )
             if ok:
                 log(f"  Rebuilt (2nd pass): {element_id}")
@@ -1296,20 +1310,24 @@ def main(args=None):
     filename = generate_result_filename(result_data, source)
     result_path = os.path.join(result_dir, filename)
 
-    max_attempts = 3
-    for attempt in range(1, max_attempts + 1):
-        try:
-            if os.path.exists(result_path):
-                os.remove(result_path)
-            save_json(result_path, result_data)
-            log(f"Result saved to: {result_path}")
-            break
-        except PermissionError as e:
-            log(f"Error saving (attempt {attempt}/{max_attempts}): {e}")
-            if attempt < max_attempts:
-                time.sleep(1.5)
-            else:
-                errors.append(f"Could not save result file: {e}")
+    if parsed.dry_run:
+        log(f"[DRY RUN] Результат был бы сохранён в: {result_path}")
+        log(f"[DRY RUN] Изменений применено: {changes_applied}, провалено: {changes_failed}")
+    else:
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if os.path.exists(result_path):
+                    os.remove(result_path)
+                save_json(result_path, result_data)
+                log(f"Result saved to: {result_path}")
+                break
+            except PermissionError as e:
+                log(f"Error saving (attempt {attempt}/{max_attempts}): {e}")
+                if attempt < max_attempts:
+                    time.sleep(1.5)
+                else:
+                    errors.append(f"Could not save result file: {e}")
 
     # ========== POST-REBUILD HISTORY SNAPSHOT ==========
     history.snapshot('after_rebuild', result_data,

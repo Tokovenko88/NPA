@@ -1,0 +1,228 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NPA JSON Document",
+  "description": "Структура JSON-документа нормативного правового акта",
+  "type": "object",
+  "required": [
+    "npa_id",
+    "npa_type",
+    "npa_number",
+    "date_pub",
+    "valid_from",
+    "npa_items_revision"
+  ],
+  "properties": {
+    "npa_id": {
+      "type": "integer",
+      "description": "Уникальный числовой ID НПА"
+    },
+    "npa_type": {
+      "type": "string",
+      "enum": ["law", "regulation"],
+      "description": "Тип НПА: law (закон) или regulation (постановление)"
+    },
+    "npa_number": {
+      "type": "string",
+      "description": "Официальный номер НПА"
+    },
+    "npa_author": {
+      "type": "string",
+      "description": "Орган, принявший НПА"
+    },
+    "npa_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Ссылка на текст НПА"
+    },
+    "date_reg": {
+      "type": "string",
+      "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+      "description": "Дата регистрации"
+    },
+    "date_pub": {
+      "type": "string",
+      "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+      "description": "Дата публикации"
+    },
+    "valid_from": {
+      "type": "string",
+      "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+      "description": "Дата вступления в силу"
+    },
+    "npa_signer_post": {
+      "type": "string",
+      "description": "Должность подписавшего"
+    },
+    "npa_signer": {
+      "type": "string",
+      "description": "ФИО подписавшего"
+    },
+    "date_format": {
+      "type": "integer",
+      "description": "Формат дат"
+    },
+    "head_revision": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["npa_head", "modified_by_id", "valid_from"],
+        "properties": {
+          "npa_head": { "type": "string" },
+          "modified_by_id": { "type": "string" },
+          "valid_from": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+          "valid_to": { "type": ["string", "null"], "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+          "mod_type": { "type": "string" },
+          "highlights": { "type": "object" }
+        }
+      }
+    },
+    "revision_info": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["revision_id", "revision_date_valid"],
+        "properties": {
+          "revision_id": { "type": "string" },
+          "revision_number": { "type": "string" },
+          "revision_date_reg": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+          "revision_date_valid": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+          "revision_url": { "type": "string" }
+        }
+      }
+    },
+    "npa_items_revision": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/item" }
+    }
+  },
+  "definitions": {
+    "item": {
+      "type": "object",
+      "required": ["item_id", "item_type", "item_number", "item_level"],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^\\d+_[a-z_]+_\\d+(_double_\\d+)?$",
+          "description": "Формат: <npa_id>_<type>_<number>[_double_N]"
+        },
+        "item_type": {
+          "type": "string",
+          "enum": [
+            "preamble",
+            "chapter",
+            "section",
+            "article",
+            "part",
+            "point",
+            "subpoint",
+            "appendix",
+            "nested_appendix",
+            "structured_table"
+          ]
+        },
+        "item_number": { "type": ["string", "number"] },
+        "item_level": { "type": "integer", "minimum": 1 },
+        "head_revisions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/head_revision" }
+        },
+        "item_children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/item" }
+        },
+        "number_revisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["number_text", "valid_from"],
+            "properties": {
+              "number_text": { "type": "string" },
+              "valid_from": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+              "valid_to": { "type": ["string", "null"] },
+              "mod_type": { "type": "string" },
+              "modified_by_id": { "type": "string" }
+            }
+          }
+        },
+        "item_prefix_revisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "prefix_text": { "type": "string" },
+              "valid_from": { "type": "string" },
+              "valid_to": { "type": ["string", "null"] },
+              "modified_by_id": { "type": "string" },
+              "mod_type": { "type": "string" }
+            }
+          }
+        },
+        "revisions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/revision" }
+        },
+        "item_notes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text", "valid_from"],
+            "properties": {
+              "text": { "type": "string" },
+              "valid_from": { "type": "string" },
+              "valid_to": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "head_revision": {
+      "type": "object",
+      "required": ["npa_head", "modified_by_id", "valid_from"],
+      "properties": {
+        "npa_head": { "type": "string" },
+        "modified_by_id": { "type": "string" },
+        "valid_from": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+        "valid_to": { "type": ["string", "null"] },
+        "mod_type": { "type": "string" },
+        "highlights": { "type": "object" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "required": ["valid_from", "modified_by_id", "mod_type", "body"],
+      "properties": {
+        "valid_from": { "type": "string", "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$" },
+        "valid_to": { "type": ["string", "null"] },
+        "modified_by_id": { "type": "string" },
+        "mod_type": { "type": "string", "enum": ["add", "change", "delete", "new_redaction"] },
+        "body": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/body_block" }
+        },
+        "highlights": { "type": "object" }
+      }
+    },
+    "body_block": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "html_text", "order"],
+          "properties": {
+            "type": { "type": "string", "enum": ["paragraph", "table_fragment"] },
+            "html_text": { "type": "string" },
+            "order": { "type": "integer" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "item_id", "order"],
+          "properties": {
+            "type": { "type": "string", "enum": ["child_ref"] },
+            "item_id": { "type": "string" },
+            "order": { "type": "integer" }
+          }
+        }
+      ]
+    }
+  }
+}

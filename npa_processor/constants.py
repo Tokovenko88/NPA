@@ -54,7 +54,9 @@ def load_prompt_from_file(filename):
 _prompt_cache = {}
 
 
-def get_prompt(name):
-    if name not in _prompt_cache:
-        _prompt_cache[name] = load_prompt_from_file(f'{name}.txt')
-    return _prompt_cache[name]
+def get_prompt(name: str) -> str:
+    for ext in ('.md', '.txt'):
+        content = load_prompt_from_file(f'{name}{ext}')
+        if content:
+            return content
+    return ""
