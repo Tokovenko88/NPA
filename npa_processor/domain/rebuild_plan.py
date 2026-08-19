@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 
 @dataclass(frozen=True)
@@ -15,7 +16,7 @@ class RebuildPlan:
     """Immutable rebuild plan produced from a document and requested IDs."""
 
     item_ids: tuple[str, ...]
-    parent_map: dict[str, str | None]
+    parent_map: Mapping[str, str | None]
 
 
 def build_parent_map(items: Iterable[Mapping]) -> dict[str, str | None]:
@@ -83,4 +84,7 @@ def build_rebuild_plan(document: Mapping, item_ids: Iterable[str]) -> RebuildPla
         roots = []
     parent_map = build_parent_map(roots)
     valid_ids = (str(item_id) for item_id in item_ids if str(item_id) in parent_map)
-    return RebuildPlan(tuple(rebuild_order(valid_ids, parent_map)), parent_map)
+    return RebuildPlan(
+        tuple(rebuild_order(valid_ids, parent_map)),
+        MappingProxyType(parent_map),
+    )
