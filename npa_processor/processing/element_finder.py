@@ -10,6 +10,7 @@ from npa_processor.processing.tree_utils import (
     parse_revision_number_to_path,
 )
 
+
 def _find_element_by_type_and_number(data, item_type, item_number, start_items=None, ambiguous_callback=None):
     if start_items is None:
         start_items = data.get('npa_items_revision', [])
@@ -36,6 +37,7 @@ def _find_element_by_type_and_number(data, item_type, item_number, start_items=N
         )
     return None
 
+
 def find_item_by_revision_number(change_data, rev_number, context_root=None):
     if not rev_number:
         return None
@@ -54,16 +56,18 @@ def find_item_by_revision_number(change_data, rev_number, context_root=None):
         start_items = context_root.get('item_children', [])
     else:
         start_items = change_data.get('npa_items_revision', [])
+
     def search_in_items(items, parts):
         current_items = items
         found_item = None
         for _part in parts:
-            part_clean_str = str(clean_number(_part)) if not isinstance(clean_number(_part), int) else str(clean_number(_part))
+            part_clean_raw = clean_number(_part)
+            part_clean_str = str(part_clean_raw)
             found_item = None
             for item in current_items:
                 item_num = item.get('item_number', '')
                 item_clean_raw = clean_number(str(item_num))
-                item_clean = str(item_clean_raw) if not isinstance(item_clean_raw, str) else item_clean_raw
+                item_clean = str(item_clean_raw)
                 if item_clean == part_clean_str:
                     found_item = item
                     break
@@ -80,8 +84,9 @@ def find_item_by_revision_number(change_data, rev_number, context_root=None):
                 return None
             current_items = found_item.get('item_children', [])
         return found_item.get('item_id') if found_item else None
-    result = search_in_items(start_items, path_parts)
-    return result
+
+    return search_in_items(start_items, path_parts)
+
 
 def _resolve_modified_by_ids(rev_number, change_data, source_element, source_item_id, log_callback,
                              structural_element='', context_root=None):
@@ -94,20 +99,17 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
             if log_callback:
                 log_callback("  revision_number отсутствует и нет source_item_id", 'warning')
             return None
+
     modified_by_ids = []
+
     def find_id_for_rev(rev):
         if not rev or (isinstance(rev, str) and rev.lower() == 'null'):
             return None
-        if any(w in str(rev).lower() for w in ['статья', 'пункт', 'часть', 'подпункт', 'абзац', 'глава', 'раздел', 'приложение']):
-            try:
-                from npa_processor.processing.element_ops import _find_existing_element_flexible
-                elem = _find_existing_element_flexible(change_data, str(rev), log_callback)
-                if elem:
-                    return elem.get('item_id')
-            except Exception as e:
-                if log_callback:
-                    log_callback(f"  Ошибка при поиске элемента по строке '{rev}': {e}", 'warning')
+        # revision_number is normalized by the canonical path parser.  Do not
+        # import element_ops here: that created a hidden processing-layer cycle
+        # and made element lookup depend on a large mutation module.
         return find_item_by_revision_number(change_data, rev, context_root=context_root)
+
     if isinstance(rev_number, list):
         for rev in rev_number:
             found_id = find_id_for_rev(rev)
@@ -125,6 +127,7 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
         return None
     return ', '.join(modified_by_ids) if modified_by_ids else None
 
+
 def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log_callback=None):
     source_elem = find_item_by_id(change_data, coarse_id)
     if not source_elem or not source_elem.get('item_children'):
@@ -140,8 +143,8 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
         token_patterns.append((prefix, number))
     KEYWORD_MAP = {
         'наименование': ['наименовани'],
-        'преамбул':     ['преамбул'],
-        'статья':       ['стать'],
+        'преамбул': ['преамбул'],
+        'статья': ['стать'],
     }
     structural_lower = structural_element.lower().strip()
     keyword_patterns = []
@@ -151,6 +154,7 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
             break
     if not token_patterns and not keyword_patterns:
         return coarse_id
+
     def _topic_header(elem):
         active_rev = next(
             (r for r in reversed(elem.get('revisions', [])) if not r.get('valid_to')),
@@ -162,6 +166,7 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
                 cut = re.search(r'[«]', raw)
                 return (raw[:cut.start()] if cut else raw).lower()
         return ''
+
     def _match_score(text, patterns):
         score = 0
         for prefix, num in patterns:
@@ -177,11 +182,14 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
                     break
                 idx = text.find(num, idx + 1)
         return score
+
     best_id = coarse_id
     best_score = 0
     best_level = -1
+
     def _keyword_score(text, needles):
         return sum(1 for n in needles if n in text)
+
     def _score(elem, level):
         nonlocal best_id, best_score, best_level
         text = _topic_header(elem)
@@ -192,6 +200,7 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
             best_level = level
         for child in elem.get('item_children', []):
             _score(child, level + 1)
+
     for child in source_elem.get('item_children', []):
         _score(child, 1)
     if best_id != coarse_id and log_callback:
@@ -199,6 +208,7 @@ def narrow_source_id_to_subpoint(coarse_id, structural_element, change_data, log
             f"  Источник уточнён: {coarse_id} -> {best_id} (score={best_score})", 'info'
         )
     return best_id
+
 
 def _extract_paragraph_order(structural):
     structural_lower = structural.lower()
