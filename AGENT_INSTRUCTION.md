@@ -39,7 +39,19 @@ At every step of processing, you MUST consult the characteristic examples in the
 
 These examples are your primary reference. If a script contradicts an example, the example takes precedence.
 
-### 2.3 DETERMINISM REQUIREMENT
+### 2.3 HISTORY PRESERVATION IS MANDATORY
+
+**CRITICAL RULE:** The JSON document stores the **FULL HISTORY** of the NPA. Every revision, including closed ones, must remain in the document with all its fields intact.
+
+- **"Delete" means "close the revision", NOT "remove from JSON".**
+- When closing a revision, set `valid_to` = (`valid_from` of new event - 1 day).
+- **NEVER remove `mod_type`, `modified_by_id`, or `body` from closed revisions.**
+- **NEVER delete the `revisions` array or replace it with an empty list.**
+- **NEVER delete child elements from `item_children` without transferring their state to a new element.**
+- The document must be restorable to any date by traversing revisions by `valid_from`/`valid_to`.
+- Any code that performs destructive operations on revisions or elements is a CRITICAL BUG and must be fixed immediately.
+
+### 2.4 DETERMINISM REQUIREMENT
 
 All NPA modifications MUST produce deterministic, repeatable results:
 - Same input + same instructions = same output
@@ -47,7 +59,7 @@ All NPA modifications MUST produce deterministic, repeatable results:
 - All decisions must be traceable to specific rules or examples
 - If ambiguity arises, flag it in the report rather than guessing
 
-### 2.4 BUGS IN BASE
+### 2.5 BUGS IN BASE
 
 If you discover bugs, errors, or inconsistencies in `База/` (the incomplete NPA database):
 - DO NOT modify files in `База/`
@@ -156,7 +168,7 @@ The final report must be human-readable and stored in `scripts/report.md`.
 
 ### 7.1 CHAT SUMMARY REQUIREMENT
 
-**CRITICAL:** After completing the pipeline, the agent MUST print a concise summary of the report directly to the chat/output. The user must see the result without having to open files.
+**CRITICAL:** After completing the pipeline OR any direct NPA modification (including helper scripts like `scripts/fix_result.py`), the agent MUST print a concise summary of the report directly to the chat/output. The user must see the result without having to open files.
 
 The chat summary must include:
 - Source and target NPA numbers
@@ -164,6 +176,7 @@ The chat summary must include:
 - Failed changes (if any)
 - Final status: SUCCESS / PARTIAL / FAILED
 - Output file path
+- Report file path: `scripts/report.md`
 - List of added/updated characteristic examples (if any)
 - List of base issues found (if any)
 
@@ -173,6 +186,7 @@ Pipeline completed.
 Status: SUCCESS
 Changes: 10 applied, 0 failed
 Output: work/results/269_2016_07_27_izm_380_2017_12_04.json
+Report: scripts/report.md
 Examples added: stage_3/simple_word_replacement
 Base issues: none
 Full report: scripts/report.md
@@ -275,7 +289,7 @@ npa_processor/          ← Core processing engine
 Before declaring the task complete:
 - [ ] All 5 stages completed or skipped with documented reason
 - [ ] Verification passed (or all failures documented)
-- [ ] Report generated in human-readable format
+- [ ] `scripts/report.md` generated or updated with final results
 - [ ] **Agent MUST print a concise summary of the report to chat/output** (see Section 7.1)
 - [ ] All self-modifications documented
 - [ ] All base issues documented

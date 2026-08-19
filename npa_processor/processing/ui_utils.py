@@ -374,8 +374,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                         if active_rev is not None:
                             active_rev['valid_to'] = valid_to_prev
                             active_rev['not_valid'] = modified_by_id
-                            active_rev.pop('mod_type', None)
-                            active_rev.pop('modified_by_id', None)
                         grand_source_revs = grand_source.setdefault('revisions', [])
                         active_grand_rev = None
                         for rev in reversed(grand_source_revs):
@@ -388,8 +386,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                             new_rev = copy.deepcopy(active_rev)
                             new_rev.pop('valid_to', None)
                             new_rev.pop('not_valid', None)
-                            new_rev.pop('mod_type', None)
-                            new_rev.pop('modified_by_id', None)
                             if 'valid_from' in new_rev:
                                 del new_rev['valid_from']
                             grand_source['revisions'] = [new_rev]
@@ -399,8 +395,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                             new_rev = copy.deepcopy(active_rev)
                             new_rev.pop('valid_to', None)
                             new_rev.pop('not_valid', None)
-                            new_rev.pop('mod_type', None)
-                            new_rev.pop('modified_by_id', None)
                             if 'valid_from' in new_rev:
                                 del new_rev['valid_from']
                             grand_source['revisions'] = [new_rev]
@@ -505,8 +499,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
             if active_rev is not None:
                 active_rev['valid_to'] = valid_to_prev
                 active_rev['not_valid'] = modified_by_id
-                active_rev.pop('mod_type', None)
-                active_rev.pop('modified_by_id', None)
             else:
                 # Элемент не имеет активной ревизии. Это возможно в двух случаях:
                 # 1) элемент уже утратил силу (есть ревизия с not_valid) — повторно
@@ -730,11 +722,15 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
     # даст две ревизии (нарушение принципа «одно изменение = одна ревизия»).
     is_placeholder_merge = bool(old_element.get('_precreated_placeholder'))
     if is_placeholder_merge:
-        # Убираем флаг плейсхолдера — элемент уже слит с реальным содержимым.
         old_element.pop('_precreated_placeholder', None)
-        # Отбрасываем фантомную "add"-заглушку целиком.
-        revisions = []
-        old_element['revisions'] = revisions
+        placeholder_revisions = old_element.get('revisions', [])
+        if placeholder_revisions:
+            for rev in reversed(placeholder_revisions):
+                if rev.get('valid_to') is None:
+                    rev['valid_to'] = valid_to_prev
+                    rev['not_valid'] = modified_by_id
+                    break
+        old_element['revisions'] = placeholder_revisions
     for rev in reversed(revisions):
         if rev.get('valid_to') is None:
             rev['valid_to'] = valid_to_prev

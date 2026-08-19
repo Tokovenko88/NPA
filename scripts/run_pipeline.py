@@ -128,41 +128,6 @@ def _validate_stage3_changes(changes, log_callback):
     return errors
 
 
-def fix_invalid_revisions(data, change_data):
-    """Remove valid_to and not_valid from revisions created by the amending law."""
-    modified_by_prefix = str(change_data.get('npa_id', ''))
-    if not modified_by_prefix:
-        return
-
-    def process_item(item):
-        for rev in item.get('revisions', []):
-            mod_by = rev.get('modified_by_id', '')
-            if mod_by and mod_by.startswith(modified_by_prefix):
-                rev.pop('valid_to', None)
-                rev.pop('not_valid', None)
-        for child in item.get('item_children', []):
-            process_item(child)
-
-    for root in data.get('npa_items_revision', []):
-        process_item(root)
-
-
-def clean_head_revisions_valid_from(data):
-    """Remove valid_from from head_revisions and top-level head_revision."""
-    def clean(item):
-        if 'head_revisions' in item:
-            for rev in item['head_revisions']:
-                rev.pop('valid_from', None)
-        for child in item.get('item_children', []):
-            clean(child)
-
-    for item in data.get('npa_items_revision', []):
-        clean(item)
-    if 'head_revision' in data and isinstance(data['head_revision'], list):
-        for rev in data['head_revision']:
-            rev.pop('valid_from', None)
-
-
 def generate_result_filename(result_data, source_data):
     orig_npa_number = result_data.get('npa_number', '')
     orig_clean_num = clean_number_for_filename(orig_npa_number)
@@ -1132,8 +1097,6 @@ def main(args=None):
 
     # ========== POST-PROCESSING ==========
     remove_empty_children(result_data)
-    fix_invalid_revisions(result_data, source)
-    clean_head_revisions_valid_from(result_data)
 
     # ========== AUTO BUG FIXES (замкнутый цикл) ==========
     auto_fixes_applied = []
@@ -1234,8 +1197,15 @@ def main(args=None):
         def recurse(items):
             for item in items:
                 revs = item.get('revisions', [])
-                for rev in revs:
-                    body = rev.get('body', []) if isinstance(rev.get('body'), list) else []
+                active_rev = None
+                for rev in reversed(revs):
+                    if rev.get('valid_to') in (None, ''):
+                        active_rev = rev
+                        break
+                if not active_rev and revs:
+                    active_rev = revs[-1]
+                if active_rev:
+                    body = active_rev.get('body', []) if isinstance(active_rev.get('body'), list) else []
                     new_body = []
                     changed = False
                     for block in body:
@@ -1247,7 +1217,7 @@ def main(args=None):
                                 continue
                         new_body.append(block)
                     if changed:
-                        rev['body'] = new_body
+                        active_rev['body'] = new_body
                 recurse(item.get('item_children', []))
         recurse(data.get('npa_items_revision', []))
         return fixed
