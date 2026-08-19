@@ -8,8 +8,8 @@
 """
 
 import re
-import json
 from datetime import datetime, timedelta
+
 from bs4 import BeautifulSoup
 
 VALID_ITEM_TYPES = {
@@ -520,24 +520,6 @@ class StructureVerifier:
         except ValueError:
             return None
 
-    @staticmethod
-    def _parse_new_field(new_str):
-        if not new_str:
-            return None, None
-        new_str = new_str.strip()
-        parts = new_str.split(maxsplit=1)
-        if len(parts) != 2:
-            return None, None
-        ru_type = parts[0].lower()
-        _MAP = {
-            'С‡Р°СЃС‚СЊ': 'part', 'РїСѓРЅРєС‚': 'point', 'РїРѕРґРїСѓРЅРєС‚': 'subpoint',
-            'СЃС‚Р°С‚СЊСЏ': 'article', 'РіР»Р°РІР°': 'chapter', 'СЂР°Р·РґРµР»': 'section',
-            'РїСЂРёР»РѕР¶РµРЅРёРµ': 'appendix',
-        }
-        type_eng = _MAP.get(ru_type, ru_type)
-        num = parts[1].strip().rstrip('.)')
-        return type_eng, num
-
     def _verify_expected_changes(self, data, changes, result):
         for idx, change in enumerate(changes):
             ch_type = change.get('type', '').strip()
@@ -557,7 +539,7 @@ class StructureVerifier:
     def _resolve_change_outcome(self, data, structural, ch_type, change):
         structural_lower = structural.lower() if structural else ''
 
-        if ch_type == 'add' and structural_lower == 'РЅРїР°':
+        if ch_type == 'add' and structural_lower == 'нпа':
             items = data.get('npa_items_revision', [])
             has_add = any(
                 any(r.get('mod_type') == 'add' for r in _iter_revisions(item))
@@ -569,8 +551,8 @@ class StructureVerifier:
                     'reason': f"Р­Р»РµРјРµРЅС‚ '{structural}' РЅРµ РЅР°Р№РґРµРЅ РІ СЂРµР·СѓР»СЊС‚Р°С‚Рµ",
                     'remediation': 'РџСЂРѕРІРµСЂРёС‚СЊ structural_element'}
 
-        if ch_type == 'delete' or 'СѓС‚СЂР°С‚' in structural_lower or structural_lower == 'law':
-            if structural_lower in ('РЅР°РёРјРµРЅРѕРІР°РЅРёРµ', 'РїСЂРµР°РјР±СѓР»Р°', 'РЅРїР°') or structural == 'law':
+        if ch_type == 'delete' or 'утрат' in structural_lower or structural_lower == 'law':
+            if structural_lower in ('наименование', 'преамбула', 'нпа') or structural == 'law':
                 target = self._resolve_target(data, structural) if structural not in ('law', '') else data
             else:
                 target = self._resolve_target(data, structural)
@@ -582,12 +564,12 @@ class StructureVerifier:
             has_delete = any(r.get('mod_type') == 'delete' for r in all_revs)
             has_not_valid = any(r.get('not_valid') for r in all_revs)
             if has_delete or has_not_valid:
-                return {'passed': True, 'reason': 'Р­Р»РµРјРµРЅС‚ РїРѕРјРµС‡РµРЅ РєР°Рє СѓРґР°Р»С‘РЅРЅС‹Р№'}
+                return {'passed': True, 'reason': 'Р­Р»РµРјРµРЅС‚ РїРѕРјРµС‡РµРЅ РєР°Рє удалённый'}
             return {'passed': False,
                     'reason': f"Р­Р»РµРјРµРЅС‚ '{structural}' РЅРµ РёРјРµРµС‚ РїСЂРёР·РЅР°РєРѕРІ СѓРґР°Р»РµРЅРёСЏ (mod_type=delete РёР»Рё not_valid)",
                     'remediation': 'РџСЂРёРјРµРЅРёС‚СЊ delete: СѓСЃС‚Р°РЅРѕРІРёС‚СЊ not_valid РІ СЃС‚Р°СЂРѕР№ СЂРµРІРёР·РёРё'}
 
-        if structural_lower == 'РЅР°РёРјРµРЅРѕРІР°РЅРёРµ':
+        if structural_lower == 'наименование':
             head_revs = data.get('head_revision', []) if isinstance(data.get('head_revision'), list) else []
             if any(r.get('mod_type') in ('change', 'new_redaction') for r in head_revs):
                 return {'passed': True, 'reason': 'РќР°РёРјРµРЅРѕРІР°РЅРёРµ РќРџРђ РёР·РјРµРЅРµРЅРѕ'}
@@ -599,17 +581,17 @@ class StructureVerifier:
                     'reason': f"Р­Р»РµРјРµРЅС‚ '{structural}' РЅРµ РЅР°Р№РґРµРЅ РІ СЂРµР·СѓР»СЊС‚Р°С‚Рµ",
                     'remediation': 'РџСЂРѕРІРµСЂРёС‚СЊ РїСѓС‚СЊ structural_element'}
 
-        if structural_lower.endswith(' РЅР°РёРјРµРЅРѕРІР°РЅРёРµ'):
+        if structural_lower.endswith(' наименование'):
             head_revs = target.get('head_revisions', [])
             if any(r.get('mod_type') in ('change', 'new_redaction') for r in head_revs):
-                return {'passed': True, 'reason': 'Р­Р»РµРјРµРЅС‚ СЃ РёР·РјРµРЅС‘РЅРЅС‹Рј РЅР°РёРјРµРЅРѕРІР°РЅРёРµРј'}
+                return {'passed': True, 'reason': 'Р­Р»РµРјРµРЅС‚ СЃ РёР·РјРµРЅС‘РЅРЅС‹Рј наименованиеРј'}
             return {'passed': False,
                     'reason': f"РќР°РёРјРµРЅРѕРІР°РЅРёРµ СЌР»РµРјРµРЅС‚Р° '{structural}' РЅРµ РёР·РјРµРЅРµРЅРѕ"}
 
-        if structural_lower.endswith(' РїСЂРµС„РёРєСЃ'):
+        if structural_lower.endswith(' префикс'):
             return {'passed': True, 'reason': 'РџСЂРµС„РёРєСЃ РїСЂРёР»РѕР¶РµРЅРёСЏ РѕР±СЂР°Р±РѕС‚Р°РЅ'}
 
-        if structural_lower == 'РїСЂРµР°РјР±СѓР»Р°':
+        if structural_lower == 'преамбула':
             rev = _active_revision(target)
             if rev and rev.get('mod_type') in ('new_redaction', 'change', 'delete'):
                 return {'passed': True, 'reason': f"РџСЂРµР°РјР±СѓР»Р°: mod_type={rev.get('mod_type')}"}

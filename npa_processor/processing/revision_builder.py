@@ -1,14 +1,8 @@
 """Построение истории ревизий."""
 
-import os
-import sys
-import re
-import json
-import time
-from datetime import datetime, timedelta, date
-from bs4 import BeautifulSoup
 
-from npa_processor.processing.revision_utils import *
+from npa_processor.processing.tree_utils import insert_child_ref_in_body
+
 
 def extract_child_refs_from_revision(rev):
     if not rev:
@@ -76,10 +70,7 @@ def _merge_highlights_with_paragraph_prefix(existing_highlights, new_highlights,
                         pos = entry[1] if isinstance(entry, list) and len(entry) > 1 else ""
                     if pos and '-' in pos:
                         parts = pos.split('-')
-                        if len(parts) >= 2:
-                            new_pos = f"{paragraph_num}-{parts[1]}"
-                        else:
-                            new_pos = f"{paragraph_num}-{parts[0]}"
+                        new_pos = f"{paragraph_num}-{parts[1]}" if len(parts) >= 2 else f"{paragraph_num}-{parts[0]}"
                     else:
                         new_pos = f"{paragraph_num}-{pos}" if pos else f"{paragraph_num}-all"
                     if side not in existing_highlights:

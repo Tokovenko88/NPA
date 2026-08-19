@@ -1,15 +1,17 @@
 """Утилиты для работы с деревом документа."""
 
-import os
-import sys
 import re
-import json
-import time
-from datetime import datetime, timedelta, date
-from bs4 import BeautifulSoup
 
-from npa_processor.processing.text_utils import normalize_number_string, safe_re_sub, normalize_text_for_search, strip_thinking_tags, parse_num, shift_highlight_index, clean_number, clean_html_text
-from npa_processor.processing.html_utils import extract_text_from_element, add_number_to_paragraph_html
+from npa_processor.processing.html_utils import add_number_to_paragraph_html, extract_text_from_element
+from npa_processor.processing.text_utils import (
+    clean_html_text,
+    clean_number,
+    normalize_text_for_search,
+    parse_num,
+    safe_re_sub,
+    shift_highlight_index,
+)
+
 
 def find_item_by_id(data, item_id):
     def recurse(items):
@@ -200,10 +202,7 @@ def _find_element_by_revision_path(root_element, revision_number):
     return current
 
 def find_child_by_type_and_number(parent, child_type, child_number, ambiguous_callback=None):
-    if child_number is None:
-        child_num_clean = None
-    else:
-        child_num_clean = clean_number(str(child_number))
+    child_num_clean = None if child_number is None else clean_number(str(child_number))
     candidates = []
     for child in parent.get('item_children', []):
         if child.get('item_type') == child_type:
@@ -256,10 +255,9 @@ def find_element_in_chapters_or_sections(parent, target_type, target_number, log
                 val = parse_num(child.get('item_number', ''))
                 if val > ch_max_val:
                     ch_max_val = val
-        if ch_max_val != (0,) and ch_max_val <= target_val:
-            if ch_max_val > best_max_val:
-                best_max_val = ch_max_val
-                best_chapter = ch
+        if ch_max_val != (0,) and ch_max_val <= target_val and ch_max_val > best_max_val:
+            best_max_val = ch_max_val
+            best_chapter = ch
     return best_chapter, None
 
 

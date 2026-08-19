@@ -1,14 +1,10 @@
 """Поиск элементов в документе."""
 
-import os
-import sys
 import re
-import json
-import time
-from datetime import datetime, timedelta, date
-from bs4 import BeautifulSoup
 
-from npa_processor.processing.revision_utils import *
+from npa_processor.processing.text_utils import clean_number, safe_re_sub
+from npa_processor.processing.tree_utils import find_item_by_id, parse_number_word, parse_revision_number_to_path
+
 
 def find_element_and_parent(data, target_id):
     def recurse(items, parent=None):
@@ -115,7 +111,7 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
                              structural_element='', manual_resolver=None, stop_event=None, context_root=None):
     if stop_event and stop_event.is_set():
         if log_callback:
-            log_callback(f"  _resolve_modified_by_ids: остановка", 'warning')
+            log_callback("  _resolve_modified_by_ids: остановка", 'warning')
         return None
     if not rev_number or (isinstance(rev_number, str) and rev_number.lower() == 'null') or rev_number == []:
         if source_item_id:
@@ -124,7 +120,7 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
             return source_item_id
         else:
             if log_callback:
-                log_callback(f"  revision_number отсутствует и нет source_item_id", 'warning')
+                log_callback("  revision_number отсутствует и нет source_item_id", 'warning')
             return None
     modified_by_ids = []
     def resolve_single(rev, stop_event=None):
@@ -142,8 +138,9 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
                 elem = _find_existing_element_flexible(change_data, str(rev), log_callback)
                 if elem:
                     return elem.get('item_id')
-            except Exception:
-                pass
+            except Exception as e:
+                if log_callback:
+                    log_callback(f"  Ошибка при поиске элемента по строке '{rev}': {e}", 'warning')
         return find_item_by_revision_number(change_data, rev, context_root=context_root)
     if isinstance(rev_number, list):
         for rev in rev_number:

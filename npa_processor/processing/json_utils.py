@@ -1,14 +1,14 @@
 """JSON-утилиты: загрузка, сохранение."""
 
-import os
 import json
+import os
 
 from npa_processor.processing.text_utils import strip_thinking_tags
 
 
 def load_json(file_path, default):
     if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             return json.load(f)
     return default
 

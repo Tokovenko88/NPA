@@ -47,7 +47,7 @@ def load_prompt_from_file(filename):
     path = _resolve_prompt_path(filename)
     if path is None:
         return ""
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         return f.read()
 
 

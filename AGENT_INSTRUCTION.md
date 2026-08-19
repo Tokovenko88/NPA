@@ -151,7 +151,7 @@ Support the following commands for example management:
 
 Present examples in a structured, human-readable format.
 
-## 6. VERIFICATION REQUIREMENTS
+## 5. VERIFICATION REQUIREMENTS
 
 After applying all changes, you MUST run verification. See `instructions/verification.md` for the complete checklist.
 
@@ -162,13 +162,13 @@ The verification must confirm:
 - Change completeness (all changes applied, none missing)
 - No anti-patterns (no full HTML in descriptions, no inlined children)
 
-## 7. REPORT FORMAT
+## 6. REPORT FORMAT
 
 The final report must be human-readable and stored in `scripts/report.md`.
 
-### 7.1 CHAT SUMMARY REQUIREMENT
+### 6.1 CHAT SUMMARY REQUIREMENT
 
-**CRITICAL:** After completing the pipeline OR any direct NPA modification (including helper scripts like `scripts/fix_result.py`), the agent MUST print a concise summary of the report directly to the chat/output. The user must see the result without having to open files.
+**CRITICAL:** After completing the pipeline OR any direct NPA modification, the agent MUST print a concise summary of the report directly to the chat/output. The user must see the result without having to open files.
 
 The chat summary must include:
 - Source and target NPA numbers
@@ -192,7 +192,7 @@ Base issues: none
 Full report: scripts/report.md
 ```
 
-### 7.2 REPORT FILE STRUCTURE
+### 6.2 REPORT FILE STRUCTURE
 
 ```markdown
 # NPA Amendment Processing Report
@@ -265,7 +265,7 @@ Full report: scripts/report.md
 - Warnings: list
 ```
 
-## 8. FILE STRUCTURE REFERENCE
+## 7. FILE STRUCTURE REFERENCE
 
 ```
 AGENT_INSTRUCTION.md    ← This file (framework)
@@ -290,7 +290,7 @@ Before declaring the task complete:
 - [ ] All 5 stages completed or skipped with documented reason
 - [ ] Verification passed (or all failures documented)
 - [ ] `scripts/report.md` generated or updated with final results
-- [ ] **Agent MUST print a concise summary of the report to chat/output** (see Section 7.1)
+- [ ] **Agent MUST print a concise summary of the report to chat/output** (see Section 6.1)
 - [ ] All self-modifications documented
 - [ ] All base issues documented
 - [ ] Output file is valid JSON

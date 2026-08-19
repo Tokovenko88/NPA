@@ -1,14 +1,15 @@
 """HTML-утилиты для извлечения и очистки HTML."""
 
-import re
-import json
 import copy
-from collections import defaultdict
-from bs4 import BeautifulSoup
 import difflib
+import json
+import re
 
-from npa_processor.processing.text_utils import safe_re_sub, strip_thinking_tags, clean_number
+from bs4 import BeautifulSoup
+
 from npa_processor.constants import TYPE_TO_RUSSIAN
+from npa_processor.processing.text_utils import clean_number, safe_re_sub, strip_thinking_tags
+
 
 def clean_and_unwrap_html(html_text, is_table_child=False):
     if not html_text:
@@ -20,10 +21,7 @@ def clean_and_unwrap_html(html_text, is_table_child=False):
         table_tag = soup.find('table')
         if table_tag:
             rows = table_tag.find_all('tr')
-            if rows:
-                html_text = "\n".join(str(row) for row in rows)
-            else:
-                html_text = table_tag.decode_contents()
+            html_text = "\n".join(str(row) for row in rows) if rows else table_tag.decode_contents()
     return html_text.strip()
 
 def _extract_quoted_html(html, log_callback=None):
@@ -577,10 +575,7 @@ def add_number_to_paragraph_html(html_text, item_number, item_type):
     if not html_text or not item_number or item_type not in ('part', 'point', 'subpoint'):
         return html_text
     item_number = str(item_number)
-    if item_type in ('part', 'point'):
-        formatted_num = f"{item_number}."
-    else:
-        formatted_num = item_number.rstrip('.') + ')'
+    formatted_num = f"{item_number}." if item_type in ('part', 'point') else item_number.rstrip('.') + ')'
     soup = BeautifulSoup(html_text, 'html.parser')
     first_para = soup.find(['p', 'div'])
     if not first_para:
@@ -671,7 +666,7 @@ def format_structural_number(number, is_header=False, has_title=False):
 def get_item_html_recursive(item, all_items_map, include_header=True):
     item_type = item.get('item_type', '')
     number = item.get('item_number', '')
-    item_id = item.get('item_id', '')
+    item.get('item_id', '')
     html_out = ""
     if include_header and item_type in ('article', 'chapter', 'section', 'appendix'):
         type_rus = TYPE_TO_RUSSIAN.get(item_type, item_type).capitalize()
@@ -720,11 +715,7 @@ def get_item_html_recursive(item, all_items_map, include_header=True):
             active_body.insert(0, {'type': 'paragraph', 'html_text': f"{formatted_num} ", 'order': 1})
     for block in active_body:
         b_type = block.get('type')
-        if b_type == 'paragraph':
-            html_out += block.get('html_text', '') + "\n"
-        elif b_type == 'table_fragment':
-            html_out += block.get('html_text', '') + "\n"
-        elif b_type == 'table_header':
+        if b_type == 'paragraph' or b_type == 'table_fragment' or b_type == 'table_header':
             html_out += block.get('html_text', '') + "\n"
         elif b_type == 'child_ref':
             child_id = block.get('item_id')
@@ -793,10 +784,7 @@ def create_element_skeleton(item_type, item_number, html_text, parent_id, existi
     if clean_parent_id:
         base_id = f"{clean_parent_id}_{item_type}_{clean_num}"
     else:
-        if doc_id:
-            base_id = f"{doc_id}_{item_type}_{clean_num}"
-        else:
-            base_id = f"toc_{item_type}_{clean_num}"
+        base_id = f"{doc_id}_{item_type}_{clean_num}" if doc_id else f"toc_{item_type}_{clean_num}"
     base_id = safe_re_sub(r'_+', '_', base_id).rstrip('_')
     candidate_id = base_id
     suffix = 2

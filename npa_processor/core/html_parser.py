@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """Модуль парсинга HTML-фрагментов НПА в JSON.
 
 Содержит класс NpaToJsonGenerator для преобразования HTML-фрагментов
 нормативных правовых актов в структурированный JSON.
 """
 
-import sys
-import re
-import os
 import hashlib
 import logging
+import os
+import re
+import sys
+
 from bs4 import BeautifulSoup
 
 _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -153,12 +153,7 @@ class NpaToJsonGenerator:
             if text.lower().startswith('раздел'):
                 return True
         first_cell_text = self.extract_text(cells[0]).strip()
-        if self._numbered_dot_regex.match(first_cell_text) or \
-           self._numbered_paren_regex.match(first_cell_text) or \
-           self._letter_paren_regex.match(first_cell_text) or \
-           self._letter_dot_regex.match(first_cell_text):
-            return True
-        return False
+        return bool(self._numbered_dot_regex.match(first_cell_text) or self._numbered_paren_regex.match(first_cell_text) or self._letter_paren_regex.match(first_cell_text) or self._letter_dot_regex.match(first_cell_text))
 
     def _parse_table_row_as_candidate(self, row_tag, row_html):
         cells = row_tag.find_all(['td', 'th'])
@@ -752,10 +747,7 @@ class NpaToJsonGenerator:
         raw_tags = self.soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'table'])
         all_tags = self._filter_out_table_children(raw_tags)
         if not all_tags:
-            if self.soup.body:
-                all_tags = list(self.soup.body.children)
-            else:
-                all_tags = list(self.soup.children)
+            all_tags = list(self.soup.body.children) if self.soup.body else list(self.soup.children)
             all_tags = [tag for tag in all_tags if hasattr(tag, 'name')]
 
         self.quote_level = 0
@@ -826,11 +818,7 @@ class NpaToJsonGenerator:
                         if candidate_full_number == target_number or candidate.get('number', '') == target_number:
                             new_head = None
                             collected_extra = False
-                            if candidate.get('type') == 'article' and candidate.get('title'):
-                                new_head = candidate['title']
-                            elif candidate.get('type') == 'chapter' and candidate.get('title'):
-                                new_head = candidate['title']
-                            elif candidate.get('type') == 'section' and candidate.get('title'):
+                            if candidate.get('type') == 'article' and candidate.get('title') or candidate.get('type') == 'chapter' and candidate.get('title') or candidate.get('type') == 'section' and candidate.get('title'):
                                 new_head = candidate['title']
                             elif candidate.get('type') == 'appendix':
                                 title, skip, title_tags = self.find_appendix_title(all_tags, i + 1)
@@ -958,7 +946,7 @@ class NpaToJsonGenerator:
             if re.match(r'^\d+$', remaining) or re.match(r'^[а-я]$', remaining.lower()):
                 parent_dots = parent_candidate.get('dot_count', 0)
                 child_dots = child_candidate.get('dot_count', 0)
-                parent_marker = parent_candidate.get('marker_style', '')
+                parent_candidate.get('marker_style', '')
                 child_marker = child_candidate.get('marker_style', '')
                 if child_marker == 'dot':
                     return child_dots > parent_dots and child_dots > 1
@@ -1066,7 +1054,7 @@ class NpaToJsonGenerator:
             candidate_str = str(candidate)
             pattern_key = f"{parent_type}_error_{candidate_str}"
             return hashlib.md5(pattern_key.encode('utf-8')).hexdigest()[:8]
-        number = str(candidate.get('number', ''))
+        str(candidate.get('number', ''))
         dot_count = candidate.get('dot_count', 0)
         marker_style = candidate.get('marker_style', '')
         numbering_type = self.determine_numbering_type(candidate) or 'unknown'
@@ -1156,9 +1144,8 @@ class NpaToJsonGenerator:
         if align_attr and align_attr.lower() == alignment:
             return True
         result = False
-        if hasattr(element, 'attrs'):
-            if 'align' in element.attrs and element['align'].lower() == alignment:
-                result = True
+        if hasattr(element, 'attrs') and 'align' in element.attrs and element['align'].lower() == alignment:
+            result = True
         return result
 
     def is_centered_tag(self, tag):
@@ -1220,19 +1207,8 @@ class NpaToJsonGenerator:
     def get_display_text(self, element_type, number, full_text, title=""):
         if element_type == 'preamble':
             return "Преамбула"
-        elif element_type == 'appendix':
-            if number:
-                base = f"Приложение {number}"
-            else:
-                base = "Приложение"
-            if title:
-                return f"{base}. {title}"
-            return base
-        elif element_type == 'nested_appendix':
-            if number:
-                base = f"Приложение {number}"
-            else:
-                base = "Приложение"
+        elif element_type == 'appendix' or element_type == 'nested_appendix':
+            base = f"Приложение {number}" if number else "Приложение"
             if title:
                 return f"{base}. {title}"
             return base
@@ -1267,9 +1243,8 @@ class NpaToJsonGenerator:
         elif element_type == 'article':
             base = f"Статья {number}"
             if title:
-                if re.match(r'^\d+$', title.strip()):
-                    if '.' not in str(number):
-                        return f"Статья {number}.{title}"
+                if re.match(r'^\d+$', title.strip()) and '.' not in str(number):
+                    return f"Статья {number}.{title}"
                 return f"{base}. {title}"
             return base
         elif element_type == 'part':
@@ -1586,7 +1561,7 @@ class NpaToJsonGenerator:
             self._pending_enum_parent = None
         if c_type == 'appendix':
             is_main_appendix = candidate.get('is_main_appendix', False)
-            is_nested_appendix = candidate.get('is_nested_appendix', False)
+            candidate.get('is_nested_appendix', False)
             if is_main_appendix:
                 self.has_chapters_flag = False
                 self.has_articles_flag = False
@@ -1616,10 +1591,7 @@ class NpaToJsonGenerator:
             return
         elif c_type in ('chapter', 'section'):
             self.has_chapters_flag = True
-            if self.in_appendix:
-                level = 2
-            else:
-                level = 1
+            level = 2 if self.in_appendix else 1
             while self.stack and self.stack[-1].get('level', 0) >= level:
                 if self.stack[-1].get('is_fragment_target', False):
                     break
@@ -1633,14 +1605,8 @@ class NpaToJsonGenerator:
             return
         elif c_type == 'article':
             self.has_articles_flag = True
-            if self.in_appendix:
-                base_level = 2
-            else:
-                base_level = 1
-            if self.has_chapters_flag:
-                level = base_level + 1
-            else:
-                level = base_level
+            base_level = 2 if self.in_appendix else 1
+            level = base_level + 1 if self.has_chapters_flag else base_level
             while self.stack and self.stack[-1].get('level', 0) >= level:
                 if self.stack[-1].get('is_fragment_target', False):
                     break
@@ -1693,10 +1659,7 @@ class NpaToJsonGenerator:
         cand_type = self.determine_numbering_type(candidate)
         if (cand_marker != adj_marker or (cand_type != self.determine_numbering_type(adjacent) and cand_num_lower == 'а')) and (cand_num_lower == '1' or cand_num_lower == 'а'):
             new_level = adjacent['level'] + 1
-            if adjacent['type'] == 'part':
-                new_type = 'point'
-            else:
-                new_type = 'subpoint'
+            new_type = 'point' if adjacent['type'] == 'part' else 'subpoint'
             self.add_to_stack_with_level(candidate, new_level, new_type)
             return
         target = None
@@ -1763,7 +1726,7 @@ class NpaToJsonGenerator:
         self.add_to_stack_with_level(candidate, level, elem_type, same_level_choice=same_level_choice)
 
     def handle_extension_case(self, candidate, adjacent, numbering_type):
-        candidate_number = candidate.get('number', '')
+        candidate.get('number', '')
         pattern_hash = self.create_pattern_hash(candidate, adjacent['type'] if adjacent else None)
         context_id = self.current_appendix_id if self.in_appendix else "main"
         saved_pattern = self.check_saved_pattern_with_level(adjacent['type'] if adjacent else None, candidate.get('dot_count', 0), pattern_hash, context_id)
@@ -1814,13 +1777,9 @@ class NpaToJsonGenerator:
                     break
             if numbering_type == 'type1' and self.doc_type == 'law':
                 elem_type = 'part'
-            elif numbering_type == 'type1' and self.doc_type == 'regulation':
+            elif numbering_type == 'type1' and self.doc_type == 'regulation' or numbering_type == 'type2':
                 elem_type = 'point'
-            elif numbering_type == 'type2':
-                elem_type = 'point'
-            elif numbering_type == 'type3':
-                elem_type = 'subpoint'
-            elif numbering_type == 'type4':
+            elif numbering_type == 'type3' or numbering_type == 'type4':
                 elem_type = 'subpoint'
             else:
                 elem_type = 'point'
@@ -1834,7 +1793,7 @@ class NpaToJsonGenerator:
     def handle_type_change_case(self, candidate, adjacent, numbering_type):
         candidate_numbering_type = numbering_type
         candidate_dot_count = candidate.get('dot_count', 0)
-        adjacent_numbering_type = self.determine_numbering_type(adjacent)
+        self.determine_numbering_type(adjacent)
         candidate_number = str(candidate.get('number', ''))
         parent_in_stack = None
         for item in reversed(self.stack):
@@ -1894,15 +1853,10 @@ class NpaToJsonGenerator:
             return
         expected_type = None
         if numbering_type == 'type1':
-            if self.stack and self.stack[-1].get('type') == 'article':
-                expected_type = 'part'
-            else:
-                expected_type = 'point'
+            expected_type = 'part' if self.stack and self.stack[-1].get('type') == 'article' else 'point'
         elif numbering_type == 'type2':
             expected_type = 'point'
-        elif numbering_type == 'type3':
-            expected_type = 'subpoint'
-        elif numbering_type == 'type4':
+        elif numbering_type == 'type3' or numbering_type == 'type4':
             expected_type = 'subpoint'
         else:
             expected_type = 'point'
@@ -1927,7 +1881,6 @@ class NpaToJsonGenerator:
             self.add_to_stack_with_level(candidate, level, elem_type, same_level_choice=True)
             return
         found_same_element = None
-        found_element_index = -1
         candidate_base_type = candidate_numbering_type.replace('_extended', '')
         for i in range(len(self.stack) - 1, -1, -1):
             item = self.stack[i]
@@ -1936,13 +1889,8 @@ class NpaToJsonGenerator:
             item_numbering_type = self.determine_numbering_type(item)
             item_base_type = item_numbering_type.replace('_extended', '') if item_numbering_type else None
             if item_base_type == candidate_base_type:
-                if candidate_base_type == 'type2':
+                if candidate_base_type == 'type2' or candidate_dot_count == item.get('dot_count', 0):
                     found_same_element = item
-                    found_element_index = i
-                    break
-                elif candidate_dot_count == item.get('dot_count', 0):
-                    found_same_element = item
-                    found_element_index = i
                     break
         if found_same_element:
             level = found_same_element.get('level', 1)
@@ -1958,21 +1906,14 @@ class NpaToJsonGenerator:
         level = adjacent_level + 1
         if adjacent['type'] == 'part':
             elem_type = 'point'
-        elif adjacent['type'] == 'point':
-            elem_type = 'subpoint'
-        elif adjacent['type'] == 'subpoint':
+        elif adjacent['type'] == 'point' or adjacent['type'] == 'subpoint':
             elem_type = 'subpoint'
         else:
             if numbering_type == 'type1':
-                if self.stack and self.stack[-1].get('type') == 'article':
-                    elem_type = 'part'
-                else:
-                    elem_type = 'point'
+                elem_type = 'part' if self.stack and self.stack[-1].get('type') == 'article' else 'point'
             elif numbering_type == 'type2':
                 elem_type = 'point'
-            elif numbering_type == 'type3':
-                elem_type = 'subpoint'
-            elif numbering_type == 'type4':
+            elif numbering_type == 'type3' or numbering_type == 'type4':
                 elem_type = 'subpoint'
             else:
                 elem_type = 'point'
@@ -2074,14 +2015,11 @@ class NpaToJsonGenerator:
             if not any(child['id'] == child_item['id'] for child in children):
                 children.append(child_item)
             return True
-        for child in parent_item.get('children', []):
-            if self._add_child_to_parent(child, parent_id, child_item):
-                return True
-        return False
+        return any(self._add_child_to_parent(child, parent_id, child_item) for child in parent_item.get('children', []))
 
     def resolve_hierarchy_old(self, candidate):
         c_type = candidate['type']
-        text = candidate.get('full_text', '')
+        candidate.get('full_text', '')
         if c_type == 'appendix':
             self.in_appendix = True
             if self.stack:
@@ -2126,7 +2064,8 @@ class NpaToJsonGenerator:
                     new_text = new_text.lstrip(' \t\n\r\x0b\x0c\u00A0')
                     first_text.replace_with(new_text)
                     return str(soup)
-        except Exception:
+        except Exception as e:
+            self.logger.debug("Failed to strip number marker: %s", e)
             pass
         return html_text
 
@@ -2259,11 +2198,7 @@ class NpaToJsonGenerator:
                 new_item['item_note'] = old_item['item_note']
             if 'item_prefix_revisions' in old_item and old_item['item_prefix_revisions']:
                 new_item['item_prefix_revisions'] = old_item['item_prefix_revisions']
-            if not old_item.get('_is_table_child', False) and old_item['type'] != 'structured_table':
-                children_result, counter = self.convert_to_new_format(old_item.get('children', []), counter)
-                if children_result:
-                    new_item['item_children'] = children_result
-            elif old_item['type'] == 'structured_table':
+            if not old_item.get('_is_table_child', False) and old_item['type'] != 'structured_table' or old_item['type'] == 'structured_table':
                 children_result, counter = self.convert_to_new_format(old_item.get('children', []), counter)
                 if children_result:
                     new_item['item_children'] = children_result

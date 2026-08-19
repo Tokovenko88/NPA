@@ -6,45 +6,44 @@ core functions (apply_change, rebuild_element_with_history) to produce output
 matching the reference implementation exactly.
 """
 
-import sys
-import os
-import json
-import copy
-import re
-import time
 import argparse
+import copy
+import json
+import os
+import re
+import sys
+import time
 from datetime import datetime, timedelta
 from threading import Event
+
 from bs4 import BeautifulSoup
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from npa_processor.processing.ui_utils import (
-    rebuild_element_with_history, _close_revision,
-    clean_number_for_filename, get_date_for_filename, find_item_by_id,
-    _add_new_element, _ensure_path, parse_add_new_field,
-    _find_existing_element_flexible, sync_parent_body_with_children,
-)
-from npa_processor.processing.html_utils import (
-    extract_paragraphs_by_indices, clean_description_html, clean_and_unwrap_html,
-    get_full_element_html, remove_leading_number_from_html,
-)
-from npa_processor.processing.element_finder import (
-    find_item_by_revision_number, _resolve_modified_by_ids,
-)
-from npa_processor.processing.revision_builder import remove_empty_children
-from npa_processor.processing.tree_utils import _find_target_element
-from npa_processor.processing.text_utils import clean_head_text, get_active_revision
-from npa_processor.processing.change_applier import apply_change
-from npa_processor.processing.ui_utils import _make_new_revision
-from npa_processor.learning import (
+from npa_processor.learning import (  # noqa: E402
+    DocumentHistory,
     LearningEngine,
     StructureVerifier,
-    DocumentHistory,
 )
-from npa_processor.processing.text_utils import clean_number
+from npa_processor.processing.change_applier import apply_change  # noqa: E402
+from npa_processor.processing.html_utils import (  # noqa: E402
+    extract_paragraphs_by_indices,
+    get_full_element_html,
+    remove_leading_number_from_html,
+)
+from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
+from npa_processor.processing.tree_utils import _find_target_element  # noqa: E402
+from npa_processor.processing.ui_utils import (  # noqa: E402
+    _find_existing_element_flexible,
+    _make_new_revision,
+    clean_number_for_filename,
+    close_revision_date,
+    find_item_by_id,
+    get_date_for_filename,
+    rebuild_element_with_history,
+)
 
 ANSWERS_DIR = os.path.join(BASE_DIR, 'work', 'answers')
 RESULT_DIR = os.path.join(BASE_DIR, 'work', 'results')
@@ -52,7 +51,7 @@ SOURCE_DIR = os.path.join(BASE_DIR, 'work', 'source')
 
 
 def load_json(path):
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -69,7 +68,6 @@ def save_text(path, text):
 
 
 def log(msg, tag='info'):
-    import sys
     try:
         print(msg, flush=True)
     except UnicodeEncodeError:
@@ -149,7 +147,6 @@ def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_n
     change_date = _parse_change_date(valid_from_str, valid_from_dt)
     mod_by = source_npa_id or str(data.get('npa_id', ''))
     if not mod_by:
-        from npa_processor.processing.html_utils import clean_number
         mod_by = str(data.get('npa_id', ''))
 
     if structural_for_delete == 'law' or structural_for_delete.lower() == 'закон':
@@ -301,7 +298,7 @@ def _load_stage_answers(name_prefix, log_callback=None):
 
 
 def _attempt_recover_change(change, result_data, source, valid_from_dt, source_item_id,
-                            prompt4_text, rebuild_ids, stop_event, log_callback,
+                            rebuild_ids, stop_event, log_callback,
                             learner, change_log_entry):
     """Попытаться восстановить проваленное изменение на основе истории самообучения.
 
@@ -309,7 +306,6 @@ def _attempt_recover_change(change, result_data, source, valid_from_dt, source_i
     resolution структурного элемента.
     """
     structural = change.get('structural_element', '').strip()
-    ch_type = change.get('type', '').strip()
     suggestions = learner.get_suggestions_for_element(structural)
     reliable_id = learner.get_reliable_mapping(structural)
     recovered = False
@@ -341,7 +337,6 @@ def _attempt_recover_change(change, result_data, source, valid_from_dt, source_i
                 source_context_root=_find_target_element(source, result_data, log_callback, 'law')
                 if result_data.get('npa_items_revision') else source,
                 ambiguous_callback=None,
-                prompt4=prompt4_text,
             )
             return ok
         except Exception as e:
@@ -350,7 +345,7 @@ def _attempt_recover_change(change, result_data, source, valid_from_dt, source_i
     return False
 
 
-def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt, source_npa_id, log_callback):
+def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt, source_npa_id, log_callback, source_data=None):
     """Detect and apply structural reorganization of an article into parts.
 
     ХАРАКТЕРНЫЙ ПРИЗНАК: изменение первого абзаца статьи добавляет нумерацию «1.»
@@ -374,11 +369,10 @@ def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt
         ch_type = change.get('type', '').strip()
         structural = change.get('structural_element', '').strip()
         desc = change.get('description', '')
-        if ch_type == 'change' and 'статья' in structural.lower():
-            if re.search(r'заменить словами\s+[«"]1\.\s', desc) or re.search(r'дополнить словами\s+[«"]1\.\s', desc):
-                reorganization_change = change
-                target_article_id = structural
-                break
+        if ch_type == 'change' and 'статья' in structural.lower() and (re.search(r'заменить словами\s+[«"]1\.\s', desc) or re.search(r'дополнить словами\s+[«"]1\.\s', desc)):
+            reorganization_change = change
+            target_article_id = structural
+            break
 
     if not reorganization_change:
         return False
@@ -397,7 +391,7 @@ def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt
         return False
 
     valid_from_str = valid_from_dt.strftime('%d.%m.%Y')
-    valid_to_str = (valid_from_dt - timedelta(days=1)).strftime('%d.%m.%Y')
+    valid_to_str = close_revision_date(valid_from_dt)
     article_id = article_elem.get('item_id', '')
     mod_by = reorganization_change.get('revision_number', source_npa_id)
     if not mod_by or mod_by == source_npa_id:
@@ -450,7 +444,7 @@ def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt
     for old_child in direct_children:
         if old_child.get('item_id') not in active_child_ids:
             continue
-        
+
         old_child_revs = old_child.get('revisions', [])
         for rev in old_child_revs:
             if rev.get('valid_to') in (None, ''):
@@ -520,17 +514,17 @@ def _detect_and_apply_structural_reorganization(all_changes, data, valid_from_dt
         child_num = num_match.group(1) if num_match else ''
 
         source_elem = None
-        def find_source(items):
+        def find_source(items, revision_number):
             for item in items:
-                if item.get('item_id') == change.get('revision_number'):
+                if item.get('item_id') == revision_number:
                     return item
-                found = find_source(item.get('item_children', []))
+                found = find_source(item.get('item_children', []), revision_number)
                 if found:
                     return found
             return None
 
-        source = load_json(os.path.join(SOURCE_DIR, 'source_npa.json'))
-        source_elem = find_source(source.get('npa_items_revision', []))
+        source = source_data if source_data is not None else load_json(os.path.join(SOURCE_DIR, 'source_npa.json'))
+        source_elem = find_source(source.get('npa_items_revision', []), change.get('revision_number'))
 
         if source_elem:
             source_html = get_full_element_html(source_elem, include_header=False)
@@ -649,7 +643,7 @@ def main(args=None):
     parser.add_argument('--strict', action='store_true',
                         help='Abort on ambiguous element resolution or missing data')
     parsed = parser.parse_args(args)
-    
+
     result_dir = RESULT_DIR
     if parsed.result_dir:
         result_dir = parsed.result_dir
@@ -679,7 +673,7 @@ def main(args=None):
     try:
         valid_from_dt = datetime.strptime(valid_from_date_str, '%d.%m.%Y').date()
     except (ValueError, TypeError):
-        raise ValueError(f"Invalid date format in source NPA: {valid_from_date_str!r}")
+        raise ValueError(f"Invalid date format in source NPA: {valid_from_date_str!r}") from None
     source_npa_id = str(source['npa_id'])
     target_npa_id = str(target.get('npa_id', ''))
 
@@ -725,7 +719,7 @@ def main(args=None):
             errors.append(f"Stage 1 error: {str(e)}")
             import traceback
             traceback.print_exc()
-    all_revocation_changes = [{'type': 'delete',
+    [{'type': 'delete',
                                'structural_element': c.get('structural_element_for_delete', ''),
                                'revision_number': None,
                                'description': ''} for c in stage1_changes]
@@ -770,20 +764,14 @@ def main(args=None):
     )
 
     # ========== STAGE 4: Text Processing ==========
-    prompt4_path = os.path.join(BASE_DIR, 'prompts', 'prompt_4.txt')
-    prompt4_text = ''
-    if os.path.exists(prompt4_path):
-        with open(prompt4_path, 'r', encoding='utf-8') as f:
-            prompt4_text = f.read()
     prompt_supplement = learner.get_prompt_supplement(stage=4)
     if prompt_supplement:
-        prompt4_text = prompt4_text + '\n\n' + prompt_supplement
         log("  Подключены обучающие примеры подсветки из learning/seed_examples.json")
     log("Stage 4: Using pre-generated answers from work/answers/ for change-type modifications.")
 
     # ========== STRUCTURAL REORGANIZATION ==========
     reorg_applied = _detect_and_apply_structural_reorganization(
-        all_changes, result_data, valid_from_dt, source_npa_id, log
+        all_changes, result_data, valid_from_dt, source_npa_id, log, source_data=source
     )
     if reorg_applied:
         history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
@@ -830,8 +818,7 @@ def main(args=None):
 
     changes_applied = 0
     changes_failed = 0
-    change_idx = 0
-    for change in all_changes:
+    for change_idx, change in enumerate(all_changes):
         ch_type = change.get('type', '').strip()
         structural = change.get('structural_element', '').strip()
         applied = False
@@ -852,7 +839,6 @@ def main(args=None):
                 manual_resolver=None,
                 source_context_root=source_context_root,
                 ambiguous_callback=None,
-                prompt4=prompt4_text,
             )
             if ok:
                 changes_applied += 1
@@ -881,7 +867,7 @@ def main(args=None):
                 # ---- CLOSED FEEDBACK: attempt recovery from learning ----
                 recovered = _attempt_recover_change(
                     change, result_data, source, valid_from_dt, source_item_id,
-                    prompt4_text, rebuild_ids, stop_event, log,
+                    rebuild_ids, stop_event, log,
                     learner, change_log[-1],
                 )
                 if recovered:
@@ -917,7 +903,6 @@ def main(args=None):
                 'applied': False, 'error': error_msg,
             })
             learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
-        change_idx += 1
 
     log(f"\nStage 5: Applied {changes_applied} changes. Failed {changes_failed}. Rebuild IDs: {len(rebuild_ids)}")
 
@@ -949,9 +934,7 @@ def main(args=None):
     unique_set = set(unique_ids)
     for uid in unique_ids:
         elem = find_item_by_id(result_data, uid)
-        if elem and (elem.get('_pending_new_redaction_html') or elem.get('_pending_html')):
-            filtered_ids.append(uid)
-        elif not is_ancestor_in_list(uid, unique_set - {uid}):
+        if elem and (elem.get('_pending_new_redaction_html') or elem.get('_pending_html')) or not is_ancestor_in_list(uid, unique_set - {uid}):
             filtered_ids.append(uid)
 
     def get_depth(item_id):
@@ -976,9 +959,7 @@ def main(args=None):
             return None
         body_parts = []
         for block in active_rev.get('body', []):
-            if block.get('type') == 'paragraph':
-                body_parts.append(block.get('html_text', ''))
-            elif block.get('type') == 'table_fragment':
+            if block.get('type') == 'paragraph' or block.get('type') == 'table_fragment':
                 body_parts.append(block.get('html_text', ''))
         if not body_parts:
             return None
@@ -1108,7 +1089,7 @@ def main(args=None):
         def recurse(items, level):
             for item in items:
                 revs = item.get('revisions', [])
-                for idx, rev in enumerate(revs):
+                for _idx, rev in enumerate(revs):
                     if not rev.get('valid_from'):
                         if rev.get('modified_by_id') or rev.get('mod_type'):
                             rev['valid_from'] = fallback_date

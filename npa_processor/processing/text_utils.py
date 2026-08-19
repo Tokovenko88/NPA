@@ -1,8 +1,8 @@
 """Текстовые утилиты для обработки НПА."""
 
 import re
-from bs4 import BeautifulSoup
 
+from bs4 import BeautifulSoup
 
 # ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 
@@ -71,10 +71,7 @@ def clean_head_text(head_text: str, item_type: str, item_number: str) -> str:
     }.get(item_type, '')
     if not type_word:
         return head_text.strip()
-    if item_number:
-        num_pattern = re.escape(str(item_number)) + r'(?:[.\-–—]\d+)*'
-    else:
-        num_pattern = r'[0-9A-Za-zА-Яа-яБё.\-–—]+'
+    num_pattern = re.escape(str(item_number)) + r'(?:[.\-–—]\d+)*' if item_number else r'[0-9A-Za-zА-Яа-яБё.\-–—]+'
     pattern = re.compile(
         r'^' + re.escape(type_word) +
         r'\s*(?:N|№)?\s*' +
@@ -92,9 +89,8 @@ def normalize_item_number(item_type, number):
     number = str(number).strip()
     number = number.strip('«»“”‘’"\'')
     number = number.strip()
-    if item_type in ('point', 'subpoint'):
-        if not number.endswith(')'):
-            return number + ')'
+    if item_type in ('point', 'subpoint') and not number.endswith(')'):
+        return number + ')'
     return number
 
 
@@ -169,7 +165,7 @@ def adjust_last_item_punctuation(parent, new_item, log_callback=None, rebuild_id
     if not has_semicolon:
         if log_callback:
             log_callback(
-                f"  Техническая правка не требуется: все сестринские элементы заканчиваются точкой",
+                "  Техническая правка не требуется: все сестринские элементы заканчиваются точкой",
                 'info'
             )
         return

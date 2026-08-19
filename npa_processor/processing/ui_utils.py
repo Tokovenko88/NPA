@@ -1,25 +1,40 @@
 """Утилиты для обработки элементов НПА."""
 
-import re
-import json
 import copy
+import json
+import re
 from datetime import datetime, timedelta
+
 from bs4 import BeautifulSoup
 
-from npa_processor.processing.text_utils import safe_re_sub, clean_head_text, parse_num, clean_html_text, get_element_text
-from npa_processor.processing.tree_utils import (
-    _find_element_by_revision_path, clean_number, find_item_by_id,
-    find_element_in_chapters_or_sections, find_child_by_type_and_number,
-    insert_child_ref_in_body,
-)
+from npa_processor.core.html_parser import NpaToJsonGenerator
 from npa_processor.processing.element_finder import find_item_by_revision_number
 from npa_processor.processing.html_utils import (
-    get_full_element_html, clean_description_html, remove_leading_number_from_html,
-    parse_structural_tokens, clean_and_unwrap_html, split_html_to_paragraphs,
-    split_html_by_leading_number, create_element_skeleton,
+    clean_and_unwrap_html,
+    clean_description_html,
+    create_element_skeleton,
+    get_full_element_html,
+    parse_structural_tokens,
+    remove_leading_number_from_html,
+    split_html_by_leading_number,
+    split_html_to_paragraphs,
 )
 from npa_processor.processing.revision_builder import sync_parent_body_with_children
-from npa_processor.core.html_parser import NpaToJsonGenerator
+from npa_processor.processing.text_utils import (
+    clean_head_text,
+    clean_html_text,
+    get_element_text,
+    parse_num,
+    safe_re_sub,
+)
+from npa_processor.processing.tree_utils import (
+    _find_element_by_revision_path,
+    clean_number,
+    find_child_by_type_and_number,
+    find_element_in_chapters_or_sections,
+    find_item_by_id,
+    insert_child_ref_in_body,
+)
 
 _ETYPE_WORDS = {
     'часть': 'часть', 'части': 'часть',
@@ -41,9 +56,8 @@ def normalize_item_number(item_type, number):
     number = str(number).strip()
     number = number.strip('«»“”‘’"\'')
     number = number.strip()
-    if item_type in ('point', 'subpoint'):
-        if not number.endswith(')'):
-            return number + ')'
+    if item_type in ('point', 'subpoint') and not number.endswith(')'):
+        return number + ')'
     return number
 
 def collect_item_ids(item, ids_set):
@@ -229,10 +243,7 @@ def _item_id_exists_in_new_tree(item_id, new_element):
         return False
     if new_element.get('item_id') == item_id:
         return True
-    for child in new_element.get('item_children', []):
-        if _item_id_exists_in_new_tree(item_id, child):
-            return True
-    return False
+    return any(_item_id_exists_in_new_tree(item_id, child) for child in new_element.get('item_children', []))
 
 def _item_key_exists_in_new_tree(item_type, item_number, new_element):
     if not new_element:
@@ -273,7 +284,7 @@ def _transfer_structural_state(old_child, new_child, log_callback=None):
 
 def sync_structural_element_recursive(old_element, new_element, change_date, modified_by_id, data_context, log_callback, is_top_level=True, override_mod_type=None, highlights=None, is_table_child=False):
     valid_from_dt = datetime.strptime(change_date, '%d.%m.%Y')
-    valid_to_prev = (valid_from_dt - timedelta(days=1)).strftime('%d.%m.%Y')
+    valid_to_prev = close_revision_date(valid_from_dt)
     old_children = old_element.setdefault('item_children', [])
     new_children = new_element.get('item_children', [])
     old_by_key = {(c.get('item_type'), c.get('item_number')): c for c in old_children}
@@ -382,16 +393,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                                 break
                         if active_grand_rev is not None and active_rev is not None:
                             active_grand_rev['body'] = copy.deepcopy(active_rev.get('body', []))
-                        elif active_rev is not None:
-                            new_rev = copy.deepcopy(active_rev)
-                            new_rev.pop('valid_to', None)
-                            new_rev.pop('not_valid', None)
-                            if 'valid_from' in new_rev:
-                                del new_rev['valid_from']
-                            grand_source['revisions'] = [new_rev]
-                            if log_callback:
-                                log_callback(f"  Создана активная ревизия для {grand_source.get('item_id')} на основе старой ревизии {old_child.get('item_id')}", 'result')
-                        elif active_rev is not None:
+                        elif active_rev is not None or active_rev is not None:
                             new_rev = copy.deepcopy(active_rev)
                             new_rev.pop('valid_to', None)
                             new_rev.pop('not_valid', None)
@@ -610,9 +612,9 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
         elif block.get('type') == 'table_fragment' and is_table_child:
             new_text = 'dummy_non_empty_text'
     new_text = ' '.join(new_text.split())
-    if (not is_table_child 
-        and current_text == new_text 
-        and new_head is None 
+    if (not is_table_child
+        and current_text == new_text
+        and new_head is None
         and not children_changed
         and not hasattr(old_element, '_force_rebuild')):
         if override_mod_type != 'add':
@@ -739,10 +741,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
         if log_callback:
             log_callback(f"  Элемент {old_element.get('item_id')} добавлен без предварительной ревизии", 'info')
     else:
-        if override_mod_type is not None:
-            mod_type = override_mod_type
-        else:
-            mod_type = 'new_redaction' if is_top_level else 'change'
+        mod_type = override_mod_type if override_mod_type is not None else 'new_redaction' if is_top_level else 'change'
         new_rev = {
             'body': new_body,
             'mod_type': mod_type,
@@ -798,7 +797,7 @@ def expand_range_in_new_field(change, log_callback=None, change_data=None, targe
         if not source_html:
             source_html = change.get('description', '')
             if log_callback:
-                log_callback(f"  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
+                log_callback("  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
         source_html = safe_re_sub(r'[«»]', '', source_html)
         html_parts = split_html_by_leading_number(source_html, numbers)
         result = []
@@ -838,7 +837,7 @@ def expand_range_in_new_field(change, log_callback=None, change_data=None, targe
         if not source_html:
             source_html = change.get('description', '')
             if log_callback:
-                log_callback(f"  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
+                log_callback("  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
         source_html = safe_re_sub(r'[«»]', '', source_html)
         letter_numbers = [f"{l})" for l in letters]
         html_parts = split_html_by_leading_number(source_html, letter_numbers)
@@ -883,10 +882,7 @@ def _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context
             found = candidates[0]
         elif len(candidates) > 1 and ambiguous_callback:
             chosen_id = ambiguous_callback(etype, num, candidates, ' '.join(str(t) for t in tokens))
-            if chosen_id is None:
-                found = None
-            else:
-                found = next((c for c in candidates if c.get('item_id') == chosen_id), None)
+            found = None if chosen_id is None else next((c for c in candidates if c.get('item_id') == chosen_id), None)
         elif len(candidates) > 0:
             raise ValueError(
                 f"Неоднозначность для {etype} {num}: найдено {len(candidates)} кандидатов, "
@@ -1020,7 +1016,7 @@ def _resolve_add_parent_and_deferred(data, structural, new_str, log_callback=Non
 def _find_existing_element_flexible(data, structural, log_callback=None, ambiguous_callback=None):
     if not structural:
         return None
-    structural_lower = structural.lower().strip()
+    structural.lower().strip()
     tokens = parse_structural_tokens(structural)
     if not tokens:
         return None
@@ -1143,17 +1139,14 @@ def _add_new_element(parent, child_type, child_number, description, modified_by_
     cleaned_html = clean_and_unwrap_html(cleaned_html, is_table_child=is_table_child)
     existing_ids = set()
     collect_item_ids(data, existing_ids)
-    id_counter = [len(existing_ids) + 1]
+    [len(existing_ids) + 1]
     document_id = data.get('npa_id', 'unknown')
     clean_num = str(clean_number(str(normalized_number))).replace('.', '_')
     clean_parent_id = parent_id.rstrip('_') if parent_id else ''
     if clean_parent_id:
         base_id = f"{clean_parent_id}_{child_type}_{clean_num}"
     else:
-        if document_id:
-            base_id = f"{document_id}_{child_type}_{clean_num}"
-        else:
-            base_id = f"toc_{child_type}_{clean_num}"
+        base_id = f"{document_id}_{child_type}_{clean_num}" if document_id else f"toc_{child_type}_{clean_num}"
     base_id = safe_re_sub(r'_+', '_', base_id).rstrip('_')
     candidate_id = base_id
     suffix = 2
@@ -1285,10 +1278,9 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
     root_items = data.get('npa_items_revision', [])
     parent = find_parent(root_items, element_id)
     is_table_child = False
-    if parent and parent.get('item_type') == 'structured_table':
-        if old_item.get('item_type') != 'appendix':
-            is_table_child = True
-            old_item['_is_table_child'] = True
+    if parent and parent.get('item_type') == 'structured_table' and old_item.get('item_type') != 'appendix':
+        is_table_child = True
+        old_item['_is_table_child'] = True
     TYPES_WITH_HEAD = ('article', 'chapter', 'section', 'appendix')
     if root_type in TYPES_WITH_HEAD and not is_table_child:
         current_head_text = ''
@@ -1340,7 +1332,7 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
                 current_html = header_line + '\n' + current_html
                 _log(f"   Добавлен заголовок для парсера: {header_line}", 'info')
             else:
-                _log(f"   Заголовок уже присутствует в HTML, не дублируем", 'info')
+                _log("   Заголовок уже присутствует в HTML, не дублируем", 'info')
                 # Если реальный заголовок в HTML начинается с ведущей кавычки
                 # (напр. «Статья 5.2. Основания...»), снимаем её, иначе парсер
                 # воспримет этот абзац как цитату и унесёт название/номер в body.
@@ -1355,7 +1347,7 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
                             if stripped != node_text:
                                 first_text_node.replace_with(stripped)
                                 current_html = str(quote_soup)
-                                _log(f"   Снята ведущая кавычка с заголовка для парсера", 'info')
+                                _log("   Снята ведущая кавычка с заголовка для парсера", 'info')
     if root_type == 'structured_table' and not re.search(r'<table\b', current_html, re.IGNORECASE):
         current_html = f'<table border="1" cellpadding="0" cellspacing="0">{current_html}</table>'
     _log(f"Вызов NpaToJsonGenerator для {element_id} (mod_type={effective_mod_type})", 'info')
@@ -1385,7 +1377,7 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
             old_item['number_revisions'] = []
         for rev in old_item['number_revisions']:
             if rev.get('valid_to') is None:
-                rev['valid_to'] = (datetime.strptime(change_date_str, '%d.%m.%Y') - timedelta(days=1)).strftime('%d.%m.%Y')
+                rev['valid_to'] = close_revision_date(change_date_str)
                 break
         old_item['number_revisions'].append({
             'number_text': new_number,
@@ -1397,9 +1389,8 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
         if log_callback:
             log_callback(f"  Номер элемента изменён: {old_number} -> {new_number} (создана number_revision)", 'result')
     else:
-        if old_number and new_number and str(old_number) == str(new_number):
-            if log_callback:
-                log_callback(f"  Номер элемента не изменился: {old_number} == {new_number}", 'info')
+        if old_number and new_number and str(old_number) == str(new_number) and log_callback:
+            log_callback(f"  Номер элемента не изменился: {old_number} == {new_number}", 'info')
     if new_root.get('number'):
         num = str(new_root['number']).strip()
         if num.endswith('.') and not num.endswith('.)'):
@@ -1424,19 +1415,18 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
                     r.get('head_text') == nh.get('head_text') for r in old_item.get('head_revisions', [])
                 ):
                     old_item.setdefault('head_revisions', []).append(copy.deepcopy(nh))
-    if old_item.get('item_type') == 'appendix':
-        if not old_item.get('item_prefix_revisions'):
-            if saved_prefix_revisions:
-                old_item['item_prefix_revisions'] = saved_prefix_revisions
-            elif new_root.get('item_prefix_revisions'):
-                old_item['item_prefix_revisions'] = copy.deepcopy(new_root.get('item_prefix_revisions'))
+    if old_item.get('item_type') == 'appendix' and not old_item.get('item_prefix_revisions'):
+        if saved_prefix_revisions:
+            old_item['item_prefix_revisions'] = saved_prefix_revisions
+        elif new_root.get('item_prefix_revisions'):
+            old_item['item_prefix_revisions'] = copy.deepcopy(new_root.get('item_prefix_revisions'))
     new_number_from_root = new_root.get('number') or new_root.get('item_number')
     if new_number_from_root and str(old_item.get('item_number', '')) != str(new_number_from_root):
         if 'number_revisions' not in old_item:
             old_item['number_revisions'] = []
         for rev in old_item['number_revisions']:
             if rev.get('valid_to') is None:
-                rev['valid_to'] = (datetime.strptime(change_date_str, '%d.%m.%Y') - timedelta(days=1)).strftime('%d.%m.%Y')
+                rev['valid_to'] = close_revision_date(change_date_str)
                 break
         mod_type_num = effective_mod_type if effective_mod_type in ('add', 'new_redaction', 'change') else 'change'
         old_item['number_revisions'].append({
@@ -1511,6 +1501,11 @@ def parse_add_new_field(new_str):
     number_str = number_str.rstrip('.)')
     return ru_type, number_str
 
+def close_revision_date(valid_from):
+    if isinstance(valid_from, str):
+        valid_from = datetime.strptime(valid_from, '%d.%m.%Y').date()
+    return (valid_from - timedelta(days=1)).strftime('%d.%m.%Y')
+
 def _close_revision(rev, valid_to_str):
     rev['valid_to'] = valid_to_str
 
@@ -1537,7 +1532,7 @@ def create_new_parent_revision(parent, old_rev, new_body, valid_from, modified_b
         if log_callback:
             log_callback("  Нет активной ревизии у родителя", 'error')
         return False
-    valid_to_str = (valid_from - timedelta(days=1)).strftime('%d.%m.%Y')
+    valid_to_str = close_revision_date(valid_from)
     _close_revision(revisions[active_idx], valid_to_str)
     new_rev = _make_new_revision(new_body, mod_type=mod_type, modified_by_id=modified_by_id_str, highlights=highlights)
     revisions.append(new_rev)
@@ -1602,4 +1597,6 @@ def get_date_for_filename(data, doc_type):
         else:
             return "unknown"
     except Exception:
+        import logging
+        logging.getLogger(__name__).debug("Failed to parse date for filename", exc_info=True)
         return "unknown"

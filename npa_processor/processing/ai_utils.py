@@ -1,7 +1,7 @@
 """Утилиты для загрузки предварительных ответов этапа 4."""
 
-import os
 import json
+import os
 
 from npa_processor.processing.text_utils import strip_thinking_tags
 
@@ -23,7 +23,7 @@ def get_stage4_answer(base_key, log_callback=None):
             log_callback(f"  Предварительный ответ этапа 4 не найден: prompt_4_answer_{base_key}.json", 'error')
         return None
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
     except Exception as e:
         if log_callback:
