@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stage 1 Revocation Analysis Answer",
+  "description": "Структура ответа этапа 1 (утрата силы / ревокация). Читается run_pipeline.apply_stage1_revocation. Файл: work/answers/prompt_1_answer.json (или с суффиксами _article_M).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["structural_element", "structural_element_for_delete"],
+    "properties": {
+      "structural_element": {
+        "type": "string",
+        "description": "Полный путь к элементу в ИЗМЕНЯЮЩЕМ НПА (например, 'статья 1' или 'статья 2 -> пункт 2')."
+      },
+      "structural_element_for_delete": {
+        "type": "string",
+        "description": "'law' (весь закон) или полный путь к элементу в ЦЕЛЕВОМ НПА, теряющему силу."
+      },
+      "valid_from": {
+        "type": ["string", "null"],
+        "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+        "description": "Дата вступления в силу (null — используется общая дата)."
+      }
+    }
+  }
+}

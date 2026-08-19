@@ -8,7 +8,10 @@ import logging
 import re
 
 from npa_processor._bootstrap import _bootstrap_project_root
-from npa_processor.processing.text_utils import sup_digits_to_unicode
+from npa_processor.processing.text_utils import (
+    normalize_number_string,
+    sup_digits_to_unicode,
+)
 
 _bootstrap_project_root()
 
@@ -86,16 +89,8 @@ class NpaToJsonGenerator:
         return str(soup)
 
     def _normalize_number_string(self, num_str: str) -> str:
-        if not num_str:
-            return ""
-        num_str = str(num_str)
-        def sup_repl(match):
-            digits = match.group(1)
-            sup_map = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'}
-            return ''.join(sup_map.get(ch, ch) for ch in digits)
-        num_str = re.sub(r'<sup>(\d+)</sup>', sup_repl, num_str, flags=re.IGNORECASE)
-        num_str = re.sub(r'<[^>]+>', '', num_str)
-        return num_str.strip()
+        """Нормализует строку номера (superscript, HTML-теги) — делегирует в text_utils."""
+        return normalize_number_string(num_str)
 
     def _get_unique_item_id(self, element_type, item_number, parent_id):
         if not item_number:

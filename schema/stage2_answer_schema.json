@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stage 2 Dates / Retroactive Answer",
+  "description": "Структура ответа этапа 2 (специальные даты, ретроактивные примечания). Читается run_pipeline.apply_stage2_date_change. Файл: work/answers/prompt_2_answer.json (или с суффиксами _article_M).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["applies_to", "action_type", "structural_element"],
+    "properties": {
+      "applies_to": {
+        "type": "string",
+        "enum": ["target_law", "target"],
+        "description": "Куда применяется действие: к целевому закону целиком (target_law) или к конкретному элементу (target)."
+      },
+      "action_type": {
+        "type": "string",
+        "enum": ["special_valid_from", "retroactive_note"],
+        "description": "Действие: особая дата вступления в силу либо ретроактивное примечание о распространении действия."
+      },
+      "structural_element": {
+        "type": "string",
+        "description": "Путь к элементу целевого НПА (для special_valid_from / retroactive_note)."
+      },
+      "date": {
+        "type": "string",
+        "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+        "description": "Особая дата вступления в силу (special_valid_from); иначе используется общая дата."
+      },
+      "note_valid_from": {
+        "type": ["string", "null"],
+        "pattern": "^\\d{2}\\.\\d{2}\\.\\d{4}$",
+        "description": "Дата, с которой действие распространяется на возникшие правоотношения (retroactive_note)."
+      }
+    }
+  }
+}

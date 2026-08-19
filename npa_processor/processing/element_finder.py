@@ -3,24 +3,20 @@
 import re
 
 from npa_processor.processing.text_utils import clean_number, safe_re_sub
-from npa_processor.processing.tree_utils import find_item_by_id, parse_number_word, parse_revision_number_to_path
+from npa_processor.processing.tree_utils import (
+    find_item_by_id,
+    match_item_type_and_number,
+    parse_number_word,
+    parse_revision_number_to_path,
+)
 
 def _find_element_by_type_and_number(data, item_type, item_number, start_items=None, ambiguous_callback=None):
     if start_items is None:
         start_items = data.get('npa_items_revision', [])
-    target_num_clean = clean_number(str(item_number)) if item_number is not None else None
     candidates = []
     for item in start_items:
-        if item.get('item_type') == item_type:
-            if item_number is None:
-                if item_type in ('structured_table', 'appendix', 'preamble'):
-                    match = True
-                else:
-                    match = (not item.get('item_number', ''))
-            else:
-                match = (clean_number(str(item.get('item_number', ''))) == target_num_clean)
-            if match:
-                candidates.append(item)
+        if match_item_type_and_number(item, item_type, item_number):
+            candidates.append(item)
         child_items = item.get('item_children', [])
         if child_items:
             found = _find_element_by_type_and_number(data, item_type, item_number, child_items, ambiguous_callback)

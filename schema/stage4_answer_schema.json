@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stage 4 Text Change Answer",
+  "description": "Структура ответа этапа 4 (текстовые изменения). Файл вида work/answers/prompt_4_answer_{base_key}.json. Читается stage_answers.get_stage4_agent_answer (responses=[...] по счётчику использования, либо response/answer).",
+  "type": "object",
+  "properties": {
+    "responses": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Список ответов; берётся элемент responses[counter] по порядку использования (на один вызов — один ответ)."
+    },
+    "response": {
+      "type": "string",
+      "description": "Единственный ответ (используется, если нет 'responses')."
+    },
+    "answer": {
+      "type": "string",
+      "description": "Алиас единственного ответа (если нет ни 'responses', ни 'response')."
+    }
+  },
+  "anyOf": [
+    { "required": ["responses"] },
+    { "required": ["response"] },
+    { "required": ["answer"] }
+  ]
+}

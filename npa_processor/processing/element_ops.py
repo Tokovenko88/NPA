@@ -29,12 +29,12 @@ from npa_processor.processing.text_utils import (
     safe_re_sub,
 )
 from npa_processor.processing.tree_utils import (
-    clean_number,
     find_child_by_type_and_number,
     find_element_in_chapters_or_sections,
     find_item_by_id,
     find_parent,
     insert_child_ref_in_body,
+    match_item_type_and_number,
 )
 
 _ETYPE_WORDS = {
@@ -611,9 +611,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
             )
 
 
-def ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context_parent=None):
-    return _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context_parent, ambiguous_callback=None)
-
 def _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context_parent=None, ambiguous_callback=None):
     if context_parent is None:
         current_items = data.get('npa_items_revision', [])
@@ -629,7 +626,7 @@ def _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context
         candidates = []
         for item in current_items:
             if item.get('item_type') == etype:
-                if num is None or clean_number(str(item.get('item_number', ''))) == clean_number(str(num)):
+                if num is None or match_item_type_and_number(item, etype, num):
                     candidates.append(item)
         if len(candidates) == 1:
             found = candidates[0]
@@ -684,9 +681,6 @@ def _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context
             current_parent = new_item
     return current_parent
 
-def find_existing_element_flexible(data, structural, log_callback=None):
-    return _find_existing_element_flexible(data, structural, log_callback, ambiguous_callback=None)
-
 def _find_deepest_existing_ancestor(data, structural, log_callback=None):
     """Находит самый глубокий существующий предок для пути structural.
 
@@ -705,17 +699,9 @@ def _find_deepest_existing_ancestor(data, structural, log_callback=None):
     for etype, num in tokens:
         found = None
         for item in current_items:
-            if item.get('item_type') == etype:
-                if num is None:
-                    if etype in ('structured_table', 'appendix', 'preamble'):
-                        match = True
-                    else:
-                        match = (not item.get('item_number', ''))
-                else:
-                    match = (clean_number(str(item.get('item_number', ''))) == clean_number(str(num)))
-                if match:
-                    found = item
-                    break
+            if match_item_type_and_number(item, etype, num):
+                found = item
+                break
         if not found:
             break
         current_parent = found
@@ -781,19 +767,11 @@ def _find_existing_element_flexible(data, structural, log_callback=None, ambiguo
             path_so_far = []
         etype, num = tokens[token_idx]
         for item in items:
-            if item.get('item_type') == etype:
-                if num is None:
-                    if etype in ('structured_table', 'appendix', 'preamble'):
-                        match = True
-                    else:
-                        match = (not item.get('item_number', ''))
+            if match_item_type_and_number(item, etype, num):
+                if token_idx == len(tokens) - 1:
+                    candidates.append(item)
                 else:
-                    match = (clean_number(str(item.get('item_number', ''))) == clean_number(str(num)))
-                if match:
-                    if token_idx == len(tokens) - 1:
-                        candidates.append(item)
-                    else:
-                        _collect_candidates(item.get('item_children', []), token_idx + 1, path_so_far + [item])
+                    _collect_candidates(item.get('item_children', []), token_idx + 1, path_so_far + [item])
             elif item.get('item_type') in ('appendix', 'structured_table', 'section', 'chapter'):
                 _collect_candidates(item.get('item_children', []), token_idx, path_so_far)
     _collect_candidates(data.get('npa_items_revision', []), 0)
@@ -835,9 +813,6 @@ def find_target_chapter_or_section_for_element(parent, child_type, child_number,
                 best_num = elem_num
                 best_container = child
     return best_container
-
-def add_new_element(parent, child_type, child_number, description, modified_by_id, valid_from, data, log_callback, rebuild_ids, level_hint=None):
-    return _add_new_element(parent, child_type, child_number, description, modified_by_id, valid_from, data, log_callback, rebuild_ids, ambiguous_callback=None, level_hint=level_hint)
 
 def _add_new_element(parent, child_type, child_number, description, modified_by_id, valid_from, data, log_callback, rebuild_ids, ambiguous_callback=None, level_hint=None):
     normalized_number = normalize_item_number(child_type, str(child_number))

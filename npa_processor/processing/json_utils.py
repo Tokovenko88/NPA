@@ -3,8 +3,6 @@
 import json
 import os
 
-from npa_processor.processing.text_utils import strip_thinking_tags
-
 
 def load_json(file_path, default=None):
     """Загрузить JSON-файл с обработкой ошибок."""
@@ -41,19 +39,3 @@ def save_json(file_path, data):
             os.unlink(tmp_path)
         except Exception:
             pass
-
-
-def extract_html_from_json_response(text, log_callback=None):
-    if not text:
-        return text
-    text = strip_thinking_tags(text)
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict) and 'html' in parsed:
-            html = parsed['html']
-            if log_callback:
-                log_callback("  Извлечён HTML из JSON-объекта", 'info')
-            return html
-    except json.JSONDecodeError:
-        pass
-    return text

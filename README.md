@@ -76,6 +76,9 @@ To apply multiple amendments sequentially:
 Formal JSON schemas are available in `schema/`:
 - `npa_schema.json` — structure of NPA documents
 - `stage3_answer_schema.json` — structure of stage 3 changes extraction answers
+- `stage1_answer_schema.json` — структура ответа этапа 1 (утрата силы / ревокация)
+- `stage2_answer_schema.json` — структура ответа этапа 2 (специальные даты / ретроактивные примечания)
+- `stage4_answer_schema.json` — структура ответа этапа 4 (текстовые изменения; файлы `prompt_4_answer_{base_key}.json`)
 
 ## Self-Learning
 

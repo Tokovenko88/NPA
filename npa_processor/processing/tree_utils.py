@@ -214,20 +214,27 @@ def _find_element_by_revision_path(root_element, revision_number):
         current = found_child
     return current
 
+def match_item_type_and_number(item, item_type, item_number) -> bool:
+    """Единые правила соответствия элемента паре (item_type, item_number).
+
+    - тип элемента должен совпадать;
+    - если номер не указан: для special-case типов (structured_table, appendix,
+      preamble) подходит любой элемент; для остальных — только элемент без номера;
+    - иначе — сравнение через clean_number (учёт скобок, римских, superscript)."""
+    if not item or item.get('item_type') != item_type:
+        return False
+    if item_number is None:
+        if item_type in ('structured_table', 'appendix', 'preamble'):
+            return True
+        return not item.get('item_number', '')
+    return clean_number(str(item.get('item_number', ''))) == clean_number(str(item_number))
+
+
 def find_child_by_type_and_number(parent, child_type, child_number, ambiguous_callback=None):
-    child_num_clean = None if child_number is None else clean_number(str(child_number))
     candidates = []
     for child in parent.get('item_children', []):
-        if child.get('item_type') == child_type:
-            if child_number is None:
-                if child_type in ('structured_table', 'appendix', 'preamble'):
-                    candidates.append(child)
-                else:
-                    if not child.get('item_number', ''):
-                        candidates.append(child)
-            else:
-                if clean_number(str(child.get('item_number', ''))) == child_num_clean:
-                    candidates.append(child)
+        if match_item_type_and_number(child, child_type, child_number):
+            candidates.append(child)
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1 and ambiguous_callback:
