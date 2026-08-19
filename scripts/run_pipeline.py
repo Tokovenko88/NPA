@@ -582,10 +582,6 @@ def main(args=None):
             errors.append(f"Stage 1 error: {str(e)}")
             import traceback
             traceback.print_exc()
-    [{'type': 'delete',
-                               'structural_element': c.get('structural_element_for_delete', ''),
-                               'revision_number': None,
-                               'description': ''} for c in stage1_changes]
     log(f"  Stage 1: {len(stage1_changes)} найдено, применено {stage1_applied}, провалено {stage1_failed}")
 
     if not parsed.stage or parsed.stage >= 2:
