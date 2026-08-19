@@ -1,3 +1,5 @@
+import pytest
+
 from npa_processor.domain.rebuild_plan import build_rebuild_plan as domain_build_rebuild_plan
 from npa_processor.pipeline import build_rebuild_plan
 
@@ -59,3 +61,10 @@ def test_parent_map_is_exposed_for_runtime_coordinator():
     assert plan.parent_map["article_1"] is None
     assert plan.parent_map["article_1_part_1"] == "article_1"
     assert plan.parent_map["article_1_part_1_point_1"] == "article_1_part_1"
+
+
+def test_rebuild_plan_parent_map_is_read_only():
+    plan = build_rebuild_plan(_document(), ["article_1"])
+
+    with pytest.raises(TypeError):
+        plan.parent_map["article_1"] = "unexpected-parent"
