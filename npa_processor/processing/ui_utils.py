@@ -23,6 +23,7 @@ from npa_processor.processing.revision_builder import sync_parent_body_with_chil
 from npa_processor.processing.text_utils import (
     clean_head_text,
     clean_html_text,
+    close_revision_date,
     get_element_text,
     parse_num,
     safe_re_sub,
@@ -1468,11 +1469,6 @@ def parse_add_new_field(new_str):
     number_str = number_str.strip('«»“”‘’"\'')
     number_str = number_str.rstrip('.)')
     return ru_type, number_str
-
-def close_revision_date(valid_from):
-    if isinstance(valid_from, str):
-        valid_from = datetime.strptime(valid_from, '%d.%m.%Y').date()
-    return (valid_from - timedelta(days=1)).strftime('%d.%m.%Y')
 
 def _close_revision(rev, valid_to_str):
     rev['valid_to'] = valid_to_str

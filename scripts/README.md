@@ -25,5 +25,18 @@ Chain pipeline script for running multiple NPA processing tasks. Executes the pi
 
 Usage:
 ```bash
-python scripts/chain_pipeline.py <input_folder> [--target target_file.json] [--output work/chain_results] [--answers answers_base]
+python scripts/chain_pipeline.py <input_folder> [--target target_file.json] [--output work/chain_results] [--answers answers_base] [--stop-on-error]
 ```
+
+### Flags
+- `input_folder` — folder containing target and amendment JSON files
+- `--target` — explicit target filename in input folder (optional)
+- `--output` — output directory for chain results (default: `work/chain_results`)
+- `--answers` — base folder with stage answers per amendment (optional)
+- `--stop-on-error` — stop chain on first step failure (default: continue to next amendment)
+
+### Behavior
+- The chain pipeline applies amendments sequentially in chronological order.
+- On step failure, it logs the error and continues to the next amendment by default.
+- With `--stop-on-error`, the chain halts on the first failure.
+- Intermediate results are saved in `work/chain_results/`.

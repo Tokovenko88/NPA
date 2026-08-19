@@ -1,6 +1,7 @@
 """Текстовые утилиты для обработки НПА."""
 
 import re
+from datetime import timedelta
 
 from bs4 import BeautifulSoup
 
@@ -433,3 +434,9 @@ def clean_number(num_str):
         return cleaned
     except ValueError:
         return cleaned
+
+
+def close_revision_date(valid_from):
+    if isinstance(valid_from, str):
+        valid_from = datetime.strptime(valid_from, '%d.%m.%Y').date()
+    return (valid_from - timedelta(days=1)).strftime('%d.%m.%Y')

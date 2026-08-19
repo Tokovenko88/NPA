@@ -26,6 +26,7 @@ from npa_processor.learning import (  # noqa: E402
 )
 from npa_processor.paths import (  # noqa: E402
     ANSWERS_DIR,
+    LEARNING_DIR,
     REPORT_PATH,
     RESULTS_DIR,
     SOURCE_DIR,
@@ -33,7 +34,7 @@ from npa_processor.paths import (  # noqa: E402
     save_json,
     save_text,
 )
-from npa_processor.processing.change_applier import apply_change  # noqa: E402
+from npa_processor.processing.change_applier import apply_change, apply_stage1_revocation, apply_stage2_date_change  # noqa: E402
 from npa_processor.processing.html_utils import (  # noqa: E402
     extract_paragraphs_by_indices,
     get_full_element_html,
@@ -121,142 +122,6 @@ def generate_result_filename(result_data, source_data):
     change_date = get_date_for_filename(source_data, change_doc_type)
 
     return f"{orig_clean_num}_{orig_date}_izm_{change_clean_num}_{change_date}.json"
-
-
-def _apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
-    """Применить изменение этапа 1 (утрата силы) к целевому документу."""
-    structural_for_delete = change.get('structural_element_for_delete', '').strip()
-    valid_from_str = change.get('valid_from', '')
-    change_date = _parse_change_date(valid_from_str, valid_from_dt)
-    mod_by = source_npa_id or str(data.get('npa_id', ''))
-    if not mod_by:
-        mod_by = str(data.get('npa_id', ''))
-
-    if structural_for_delete == 'law' or structural_for_delete.lower() == 'закон':
-        head_rev = data.get('head_revision', [])
-        if not isinstance(head_rev, list) or not head_rev:
-            log_callback("  Stage 1: head_revision отсутствует для утраты закона", 'error')
-            return False
-        active_idx = -1
-        for i, rev in enumerate(head_rev):
-            if rev.get('valid_to') in (None, ''):
-                active_idx = i
-                break
-        if active_idx == -1 and head_rev:
-            active_idx = len(head_rev) - 1
-        valid_to_str = _date_minus_one(change_date)
-        if active_idx >= 0:
-            head_rev[active_idx]['valid_to'] = valid_to_str
-        head_rev.append({
-            'npa_head': '',
-            'mod_type': 'delete',
-            'modified_by_id': mod_by,
-            'valid_from': change_date.strftime('%d.%m.%Y'),
-        })
-        data['head_revision'] = head_rev
-        log_callback("  Stage 1: утрата силы всего закона применена", 'result')
-        return True
-
-    target = None
-    try:
-        target = _find_existing_element_flexible(data, structural_for_delete, log_callback)
-    except ValueError:
-        if strict:
-            log_callback(f"  Stage 1: неоднозначность для '{structural_for_delete}', отказ (strict)", 'error')
-            return False
-        target = None
-    if not target:
-        log_callback(f"  Stage 1: элемент не найден для утраты: {structural_for_delete}", 'error')
-        return False
-    revs = target.get('revisions', [])
-    active_idx = -1
-    for i, rev in enumerate(revs):
-        if rev.get('valid_to') in (None, ''):
-            active_idx = i
-            break
-    if active_idx == -1 and revs:
-        active_idx = len(revs) - 1
-    if active_idx >= 0:
-        revs[active_idx]['valid_to'] = _date_minus_one(change_date)
-        revs[active_idx]['not_valid'] = mod_by
-    new_rev = _make_new_revision([], mod_type='delete', modified_by_id=mod_by)
-    new_rev['valid_from'] = change_date.strftime('%d.%m.%Y')
-    revs.append(new_rev)
-    target['revisions'] = revs
-    log_callback(f"  Stage 1: утрата силы элемента '{structural_for_delete}' применена", 'result')
-    return True
-
-
-def _apply_stage2_date_change(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
-    """Применить изменение этапа 2 (специальные даты / ретроактивные notes)."""
-    applies_to = change.get('applies_to', '').strip()
-    action_type = change.get('action_type', '').strip()
-    structural = change.get('structural_element', '').strip()
-    special_date = change.get('date', '')
-    change_date = _parse_change_date(special_date, valid_from_dt)
-    mod_by = source_npa_id or str(data.get('npa_id', ''))
-
-    target = None
-    if applies_to == 'target_law' or applies_to == 'target':
-        try:
-            target = _find_existing_element_flexible(data, structural, log_callback)
-        except ValueError:
-            if strict:
-                log_callback(f"  Stage 2: неоднозначность для '{structural}', отказ (strict)", 'error')
-                return False
-            target = None
-    if action_type == 'special_valid_from':
-        if target is None:
-            log_callback(f"  Stage 2: элемент не найден для special_valid_from: {structural}", 'error')
-            return False
-        revs = target.get('revisions', [])
-        active_idx = -1
-        for i, rev in enumerate(revs):
-            if rev.get('valid_to') in (None, ''):
-                active_idx = i
-                break
-        if active_idx == -1 and revs:
-            active_idx = len(revs) - 1
-        if active_idx >= 0:
-            revs[active_idx]['valid_to'] = _date_minus_one(change_date)
-        new_rev = {'mod_type': 'new_redaction', 'modified_by_id': mod_by,
-                   'valid_from': change_date.strftime('%d.%m.%Y'), 'body': []}
-        revs.append(new_rev)
-        target['revisions'] = revs
-        log_callback(f"  Stage 2: special_valid_from применена к '{structural}' с датой {change_date}", 'result')
-        return True
-    if action_type == 'retroactive_note':
-        if target is None:
-            log_callback(f"  Stage 2: элемент не найден для retroactive_note: {structural}", 'error')
-            return False
-        note_date = change.get('note_valid_from', special_date)
-        note = {
-            'text': f"Действие положений {structural} распространяется на правоотношения, "
-                    f"возникшие с {note_date}",
-            'valid_from': note_date,
-            'valid_to': '',
-        }
-        notes = target.setdefault('item_notes', [])
-        if not isinstance(notes, list):
-            notes = []
-        notes.append(note)
-        target['item_notes'] = notes
-        log_callback(f"  Stage 2: retroactive_note добавлен к '{structural}'", 'result')
-        return True
-    return False
-
-
-def _parse_change_date(date_str, fallback_dt):
-    if not date_str:
-        return fallback_dt
-    try:
-        return datetime.strptime(date_str, '%d.%m.%Y').date()
-    except (ValueError, TypeError):
-        return fallback_dt
-
-
-def _date_minus_one(dt):
-    return (dt - timedelta(days=1)).strftime('%d.%m.%Y')
 
 
 def _load_stage_answers(name_prefix, log_callback=None):
@@ -678,7 +543,7 @@ def main(args=None):
     run_start = datetime.now()
 
     result_data = copy.deepcopy(target)
-    history = DocumentHistory(learner.LEARNING_DIR)
+    history = DocumentHistory(LEARNING_DIR)
     history.set_source(target)
     history.snapshot('initial', result_data, {'label': 'target NPA before changes'})
 
@@ -704,7 +569,7 @@ def main(args=None):
     stage1_failed = 0
     for change in stage1_changes:
         try:
-            ok = _apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
+            ok = apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
             if ok:
                 stage1_applied += 1
                 history.snapshot(f'after_stage1_revoke_{stage1_applied}', result_data,
@@ -731,7 +596,7 @@ def main(args=None):
     stage2_failed = 0
     for change in stage2_changes:
         try:
-            ok = _apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
+            ok = apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
             if ok:
                 stage2_applied += 1
                 history.snapshot(f'after_stage2_{stage2_applied}', result_data,
@@ -747,6 +612,8 @@ def main(args=None):
     if not parsed.stage or parsed.stage >= 3:
         # ========== STAGE 3: Changes Extraction ==========
         all_changes = _load_stage_answers('prompt_3_answer', log)
+    else:
+        all_changes = []
     log(f"Stage 3: Loaded {len(all_changes)} changes from prompt answers.")
 
     # Post-stage-3 validation: catch anti-patterns before applying
@@ -763,6 +630,7 @@ def main(args=None):
         [c.get('structural_element', '').strip() for c in all_changes if c.get('structural_element')]
     )
 
+    prompt_supplement = ""
     if not parsed.stage or parsed.stage >= 4:
         # ========== STAGE 4: Text Processing ==========
         prompt_supplement = learner.get_prompt_supplement(stage=4)
@@ -777,9 +645,10 @@ def main(args=None):
     if reorg_applied:
         history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
 
+    change_type_counts = {}
     if not parsed.stage or parsed.stage >= 5:
         # ========== STAGE 5: Apply Changes ==========
-        change_type_counts = {}
+        pass
     for change in all_changes:
         ct = change.get('type', 'unknown')
         change_type_counts[ct] = change_type_counts.get(ct, 0) + 1

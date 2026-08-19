@@ -3,10 +3,6 @@ import os
 CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
 PROMPTS_DIR = os.path.join(os.path.dirname(CONFIG_DIR), 'prompts')
 
-DEFAULT_EXTRA_OPTIONS = {
-    "temperature": 0.0,
-    "top_p": 0.1,
-}
 
 TYPE_TO_RUSSIAN = {
     'article': 'Статья',

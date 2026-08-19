@@ -1,11 +1,18 @@
 # NPA JSON Agent Processor
 
-AI-agent-driven pipeline for applying NPA amendments from one JSON to another using structured prompts and deterministic output.
+Agent-driven pipeline for applying NPA amendments from one JSON to another using structured prompts and deterministic output.
+
+## Architecture
+
+The pipeline has a strict agent ↔ script contract:
+
+- **Stages 1–4:** The agent analyzes source/target NPA using prompts, instructions, examples, and learning data. It writes JSON answer files under `work/answers/`.
+- **Stage 5:** Scripts read the agent-produced answer files and apply them deterministically to the target JSON. No generative step occurs inside scripts and no external AI/LLM APIs are called.
 
 ## Structure
 
 ```
-AGENT_INSTRUCTION.md     - Framework instruction for the AI agent (in git)
+AGENT_INSTRUCTION.md     - Framework instruction for the agent (in git)
 instructions/            - Stage-specific instructions (in git)
 examples/                - Characteristic examples for each stage (in git)
 schema/                  - JSON structure documentation (in git)
@@ -15,7 +22,7 @@ learning/                - Runtime learning data: run logs, mappings (NOT in git
 База/                     - Incomplete NPA database: JSON laws/resolutions (NOT in git)
 work/                    - Working files (NOT in git)
   source/                - Source and target NPA JSONs
-  answers/               - AI answers for each stage
+  answers/               - Agent stage answers
   results/               - Final NPA after applying changes
   chain_results/         - Intermediate results for chain pipeline
 npa_processor/           - Core processing engine (in git)
@@ -30,8 +37,16 @@ npa_processor/           - Core processing engine (in git)
 
 1. Place source NPA in `work/source/source_npa.json`
 2. Place target NPA in `work/source/target_npa.json`
-3. Run the agent following `AGENT_INSTRUCTION.md`
+3. Run the agent following `AGENT_INSTRUCTION.md` to produce answer files in `work/answers/`
 4. Execute pipeline: `python -m npa_processor` or `python scripts/run_pipeline.py`
+
+### Answer File Names
+
+The agent must produce these files under `work/answers/`:
+- Stage 1: `prompt_1_answer.json`
+- Stage 2: `prompt_2_answer.json`
+- Stage 3: `prompt_3_answer.json` (or per-article variants)
+- Stage 4: `prompt_4_answer_{key}.json` (e.g. `{item_id}_content`, `head`, `prefix_{id}`)
 
 ### CLI Flags
 

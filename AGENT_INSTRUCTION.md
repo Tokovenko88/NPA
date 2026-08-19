@@ -101,6 +101,18 @@ Stage 5: Apply Changes to JSON
     Output: Final amended NPA JSON
 ```
 
+**Agent ↔ Pipeline contract:**
+- **Stages 1–4:** The agent analyzes source/target using prompts + instructions + examples + learning, and writes JSON answer files under `work/answers/`.
+- **Stage 5:** Scripts apply the agent-produced answers to the target JSON deterministically. There is no generative step inside scripts and no external AI/LLM calls.
+
+Answer file naming convention under `work/answers/`:
+- Stage 1: `prompt_1_answer.json` (or per-article variants)
+- Stage 2: `prompt_2_answer.json`
+- Stage 3: `prompt_3_answer.json` / `prompt_3_answer_article_N.json`
+- Stage 4: `prompt_4_answer_{key}.json` where key is e.g. `{item_id}_content`, `{item_id}_para_{N}`, `head`, `prefix_{id}`
+
+The pipeline must not invent HTML without these answer files (except optional deterministic fallback for simple replacement patterns).
+
 Detailed instructions for each stage are in:
 - `instructions/stage_1_revocation.md`
 - `instructions/stage_2_dates.md`

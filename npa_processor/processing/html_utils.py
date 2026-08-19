@@ -517,10 +517,10 @@ def _correct_table_highlights(old_html, new_html, highlights, log_callback=None)
                 for k in range(j1, j2):
                     additions.append(["table", str(k + 1)])
 
-        # Если программа вообще не нашла изменений, оставляем ответ ИИ (он может быть прав)
+        # Если программа вообще не нашла изменений, оставляем ответ агента этапа 4 (он может быть прав)
         if not diff_prev and not diff_curr and not additions and not deletions:
             if log_callback:
-                log_callback("  Корректировка: изменений в HTML строк не найдено, оставлен ответ ИИ.", 'info')
+                log_callback("  Корректировка: изменений в HTML строк не найдено, оставлен ответ агента этапа 4.", 'info')
             return highlights
 
         if log_callback:
@@ -539,12 +539,12 @@ def _correct_table_highlights(old_html, new_html, highlights, log_callback=None)
             }
         }
     except Exception as e:
-        # Если в программе произошла ошибка, безопасно возвращаем ответ ИИ
+        # Если в программе произошла ошибка, безопасно возвращаем ответ агента этапа 4
         if log_callback:
-            log_callback(f"  Ошибка при программной корректировке подсветки: {e}. Оставлен ответ ИИ.", 'warning')
+            log_callback(f"  Ошибка при программной корректировке подсветки: {e}. Оставлен ответ агента этапа 4.", 'warning')
         return highlights
 
-def parse_ai_response_for_prompt4(response_text, change_description="", log_callback=None):
+def parse_stage4_answer(response_text, change_description="", log_callback=None):
     from npa_processor.processing.ui_utils import _normalize_highlights_positions
     if not response_text:
         return "", None
@@ -558,7 +558,7 @@ def parse_ai_response_for_prompt4(response_text, change_description="", log_call
         data = json.loads(response_text)
         if not isinstance(data, dict):
             if log_callback:
-                log_callback(f"  Ответ ИИ распознан как {type(data).__name__}, не dict — используется как HTML", 'warning')
+                log_callback(f"  Ответ агента этапа 4 распознан как {type(data).__name__}, не dict — используется как HTML", 'warning')
             return str(data), None
         html = data.get('html', '')
         highlights = data.get('highlights', None)
@@ -568,7 +568,7 @@ def parse_ai_response_for_prompt4(response_text, change_description="", log_call
         return html, highlights
     except json.JSONDecodeError:
         if log_callback:
-            log_callback("  Ответ ИИ не является JSON, используется как чистый HTML", 'warning')
+            log_callback("  Ответ агента этапа 4 не является JSON, используется как чистый HTML", 'warning')
         return response_text, None
 
 def add_number_to_paragraph_html(html_text, item_number, item_type):
@@ -881,7 +881,7 @@ def _normalize_for_comparison(text):
     return ' '.join(text.split())
 
 
-def _verify_ai_highlights_for_replacements(highlights, replacement_pairs):
+def _verify_highlights_for_replacements(highlights, replacement_pairs):
     if not highlights or not isinstance(highlights, dict):
         return False
     if not replacement_pairs:

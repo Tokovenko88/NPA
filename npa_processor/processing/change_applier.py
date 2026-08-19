@@ -7,7 +7,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 from npa_processor.constants import TYPE_TO_RUSSIAN
-from npa_processor.processing.ai_utils import get_stage4_answer
+from npa_processor.processing.stage_answers import get_stage4_agent_answer
 from npa_processor.processing.element_finder import (
     _extract_paragraph_order,
     _resolve_modified_by_ids,
@@ -16,20 +16,21 @@ from npa_processor.processing.element_finder import (
 from npa_processor.processing.html_utils import (
     _correct_table_highlights,
     _extract_replacement_pairs,
-    _verify_ai_highlights_for_replacements,
+    _verify_highlights_for_replacements,
     clean_and_unwrap_html,
     clean_description_html,
     compute_highlights_from_html_diff,
     extract_paragraphs_by_indices,
     get_current_head,
     get_full_element_html,
-    parse_ai_response_for_prompt4,
+    parse_stage4_answer,
     parse_structural_tokens,
     remove_leading_number_from_html,
     split_html_to_paragraphs,
     strip_number_from_element_html,
 )
-from npa_processor.processing.text_utils import adjust_punctuation_after_deletion, clean_head_text, safe_re_sub
+from npa_processor.processing.text_change_engine import apply_deterministic_change, matches_deterministic_pattern
+from npa_processor.processing.text_utils import adjust_punctuation_after_deletion, clean_head_text, close_revision_date, safe_re_sub
 from npa_processor.processing.tree_utils import (
     adjust_highlights_for_paragraph_change,
     find_appendix_by_number,
@@ -143,7 +144,7 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
         if log_callback:
             log_callback("  Нет активной ревизии у элемента", 'error')
         return False
-    ai_paragraphs = []
+    working_paragraphs = []
     combined_highlights = None
     if text_changes:
         current_html = get_full_element_html(element, include_header=False)
@@ -159,17 +160,29 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                 para_num = _extract_paragraph_order(structural)
             if para_num is not None:
                 desc = f"абзац {para_num}: {desc}"
+            if matches_deterministic_pattern(desc):
+                old_html_for_det = current_html
+                det_html, det_highlights = apply_deterministic_change(old_html_for_det, desc, log_callback)
+                if det_html:
+                    if log_callback:
+                        log_callback("  Deterministic replacement applied for change", 'result')
+                    answer_html = det_html
+                    ai_highlights = det_highlights
+                    current_html = answer_html
+                    if ai_highlights:
+                        combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, ai_highlights, 1)
+                    continue
             if log_callback:
-                log_callback(f"  Отправка запроса к ИИ для изменения: {desc[:80]}...", 'info')
-            answer = get_stage4_answer(f"{element.get('item_id')}_content", log_callback)
+                log_callback(f"  Загрузка ответа агента для изменения: {desc[:80]}...", 'info')
+            answer = get_stage4_agent_answer(f"{element.get('item_id')}_content", log_callback)
             if not answer:
                 if log_callback:
-                    log_callback("  Не удалось получить ответ от ИИ", 'error')
+                    log_callback("  Ответ агента этапа 4 отсутствует", 'error')
                 return False
-            answer_html, ai_highlights = parse_ai_response_for_prompt4(answer, desc, log_callback)
+            answer_html, ai_highlights = parse_stage4_answer(answer, desc, log_callback)
             if not answer_html:
                 if log_callback:
-                    log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+                    log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
                 return False
             answer_html = safe_re_sub(r'(?i)^\s*<target_html>\s*', '', answer_html)
             answer_html = safe_re_sub(r'(?i)\s*</target_html>\s*$', '', answer_html)
@@ -185,19 +198,19 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
 
             if ai_highlights:
                 replacement_pairs = _extract_replacement_pairs(desc)
-                if replacement_pairs and not _verify_ai_highlights_for_replacements(ai_highlights, replacement_pairs):
+                if replacement_pairs and not _verify_highlights_for_replacements(ai_highlights, replacement_pairs):
                     if log_callback:
-                        log_callback("  Подсветка ИИ не соответствует замене в описании, будет использован программный дифф", 'warning')
+                        log_callback("  Подсветка агента не соответствует замене в описании, будет использован программный дифф", 'warning')
                     ai_highlights = None
 
             current_html = answer_html
             if ai_highlights:
                 combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, ai_highlights, 1)
-        ai_paragraphs = split_html_to_paragraphs(current_html)
-        if not ai_paragraphs:
-            ai_paragraphs = [current_html] if current_html.strip() else []
+        working_paragraphs = split_html_to_paragraphs(current_html)
+        if not working_paragraphs:
+            working_paragraphs = [current_html] if current_html.strip() else []
         if log_callback:
-            log_callback("  Текстовые изменения ИИ применены", 'result')
+            log_callback("  Текстовые изменения агента применены", 'result')
         if is_highlights_empty(combined_highlights) and text_changes:
             old_html_for_highlights = get_full_element_html(element, include_header=False)
             combined_desc = " ; ".join(ch.get('description', '') for ch in text_changes)
@@ -211,9 +224,9 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                 log_callback(f"  Не удалось получить HTML-содержимое элемента {element.get('item_id')} для базовой ревизии.", 'error')
             return False
         current_html = strip_number_from_element_html(current_html, str(element.get('item_number', '')), element.get('item_type', ''))
-        ai_paragraphs = split_html_to_paragraphs(current_html)
-        if not ai_paragraphs:
-            ai_paragraphs = [current_html] if current_html.strip() else []
+        working_paragraphs = split_html_to_paragraphs(current_html)
+        if not working_paragraphs:
+            working_paragraphs = [current_html] if current_html.strip() else []
     pending_paragraph_ops = []
     for op in paragraph_ops:
         structural = op.get('structural_element', '')
@@ -231,9 +244,9 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                 log_callback(f"  Не удалось извлечь номер абзаца из '{structural}'", 'error')
             continue
         if ch_type == 'delete':
-            if 1 <= para_num <= len(ai_paragraphs):
-                text_before = ai_paragraphs[para_num - 1]
-                del ai_paragraphs[para_num - 1]
+            if 1 <= para_num <= len(working_paragraphs):
+                text_before = working_paragraphs[para_num - 1]
+                del working_paragraphs[para_num - 1]
                 combined_highlights = adjust_highlights_for_paragraph_change(
                     combined_highlights, 'delete', para_num, text_before=text_before
                 )
@@ -241,10 +254,10 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                     log_callback(f"  Абзац {para_num} удалён", 'result')
             else:
                 desc_text = op.get('description', '')
-                content_idx = _find_paragraph_by_content(ai_paragraphs, desc_text, log_callback)
+                content_idx = _find_paragraph_by_content(working_paragraphs, desc_text, log_callback)
                 if content_idx > 0:
-                    text_before = ai_paragraphs[content_idx - 1]
-                    del ai_paragraphs[content_idx - 1]
+                    text_before = working_paragraphs[content_idx - 1]
+                    del working_paragraphs[content_idx - 1]
                     combined_highlights = adjust_highlights_for_paragraph_change(
                         combined_highlights, 'delete', content_idx, text_before=text_before
                     )
@@ -281,9 +294,9 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
             if not new_html:
                 new_html = source_html
             new_html = clean_description_html(new_html)
-            if 1 <= target_idx <= len(ai_paragraphs):
-                old_html = ai_paragraphs[target_idx - 1]
-                ai_paragraphs[target_idx - 1] = new_html
+            if 1 <= target_idx <= len(working_paragraphs):
+                old_html = working_paragraphs[target_idx - 1]
+                working_paragraphs[target_idx - 1] = new_html
                 combined_highlights = adjust_highlights_for_paragraph_change(
                     combined_highlights, 'new_redaction', target_idx,
                     text_before=old_html, text_after=new_html,
@@ -295,9 +308,9 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                 insert_idx = target_idx - 1
                 if insert_idx < 0:
                     insert_idx = 0
-                if insert_idx > len(ai_paragraphs):
-                    insert_idx = len(ai_paragraphs)
-                ai_paragraphs.insert(insert_idx, new_html)
+                if insert_idx > len(working_paragraphs):
+                    insert_idx = len(working_paragraphs)
+                working_paragraphs.insert(insert_idx, new_html)
                 combined_highlights = adjust_highlights_for_paragraph_change(
                     combined_highlights, 'add', insert_idx + 1,
                     text_after=new_html,
@@ -306,15 +319,15 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                 if log_callback:
                     log_callback(f"  Абзац {target_idx} вставлен", 'result')
         elif op_type == 'change':
-            if 1 <= target_idx <= len(ai_paragraphs):
-                old_html = ai_paragraphs[target_idx - 1]
+            if 1 <= target_idx <= len(working_paragraphs):
+                old_html = working_paragraphs[target_idx - 1]
                 if log_callback:
-                    log_callback(f"  Отправка запроса к ИИ для изменения абзаца {target_idx}...", 'info')
-                answer = get_stage4_answer(f"{element.get('item_id')}_para_{target_idx}", log_callback)
+                    log_callback(f"  Отправка запроса к агенту для изменения абзаца {target_idx}...", 'info')
+                answer = get_stage4_agent_answer(f"{element.get('item_id')}_para_{target_idx}", log_callback)
                 if answer:
-                    new_html, ai_highlights = parse_ai_response_for_prompt4(answer, log_callback)
+                    new_html, ai_highlights = parse_stage4_answer(answer, log_callback)
                     if new_html:
-                        ai_paragraphs[target_idx - 1] = new_html
+                        working_paragraphs[target_idx - 1] = new_html
                         if ai_highlights:
                             combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, ai_highlights, target_idx)
                         else:
@@ -322,30 +335,30 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                             if computed:
                                 combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, computed, target_idx)
                         if log_callback:
-                            log_callback(f"  Абзац {target_idx} изменён через ИИ", 'result')
+                            log_callback(f"  Абзац {target_idx} изменён по ответу агента", 'result')
                     else:
                         if log_callback:
                             log_callback(f"  Не удалось извлечь HTML для абзаца {target_idx}", 'error')
                 else:
                     if log_callback:
-                        log_callback(f"  Не удалось получить ответ ИИ для абзаца {target_idx}", 'error')
+                        log_callback(f"  Не удалось получить ответ агента для абзаца {target_idx}", 'error')
             else:
                 desc_text = original_op.get('description', '')
-                content_idx = _find_paragraph_by_content(ai_paragraphs, desc_text, log_callback)
+                content_idx = _find_paragraph_by_content(working_paragraphs, desc_text, log_callback)
                 if content_idx > 0:
-                    old_html = ai_paragraphs[content_idx - 1]
+                    old_html = working_paragraphs[content_idx - 1]
                     if log_callback:
                         log_callback(f"  Абзац {target_idx} не найден по индексу, изменяем по содержимому (позиция {content_idx})...", 'info')
-                    answer = get_stage4_answer(f"{element.get('item_id')}_content", log_callback)
+                    answer = get_stage4_agent_answer(f"{element.get('item_id')}_content", log_callback)
                 if answer:
-                    new_html, ai_highlights = parse_ai_response_for_prompt4(answer, log_callback)
+                    new_html, ai_highlights = parse_stage4_answer(answer, log_callback)
                     if new_html:
-                        ai_paragraphs[target_idx - 1] = new_html
+                        working_paragraphs[target_idx - 1] = new_html
                         if ai_highlights:
                             replacement_pairs = _extract_replacement_pairs(original_op.get('description', ''))
-                            if replacement_pairs and not _verify_ai_highlights_for_replacements(ai_highlights, replacement_pairs):
+                            if replacement_pairs and not _verify_highlights_for_replacements(ai_highlights, replacement_pairs):
                                 if log_callback:
-                                    log_callback(f"  Подсветка ИИ для абзаца {content_idx} не соответствует замене, будет использован программный дифф", 'warning')
+                                    log_callback(f"  Подсветка агента для абзаца {content_idx} не соответствует замене, будет использован программный дифф", 'warning')
                                 ai_highlights = None
                         if ai_highlights:
                             combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, ai_highlights, content_idx)
@@ -354,13 +367,13 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
                             if computed:
                                 combined_highlights = _merge_highlights_with_paragraph_prefix(combined_highlights, computed, content_idx)
                         if log_callback:
-                            log_callback(f"  Абзац {content_idx} изменён через ИИ (по содержимому)", 'result')
+                            log_callback(f"  Абзац {content_idx} изменён по ответу агента (по содержимому)", 'result')
                     else:
                         if log_callback:
                             log_callback(f"  Не удалось извлечь HTML для абзаца {content_idx}", 'error')
                 else:
                     if log_callback:
-                        log_callback(f"  Не удалось получить ответ ИИ для абзаца {content_idx}", 'error')
+                        log_callback(f"  Не удалось получить ответ агента для абзаца {content_idx}", 'error')
         elif op_type == 'add':
             if '_quoted_html' in original_op:
                 source_html = original_op['_quoted_html']
@@ -382,9 +395,9 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
             insert_idx = target_idx - 1
             if insert_idx < 0:
                 insert_idx = 0
-            if insert_idx > len(ai_paragraphs):
-                insert_idx = len(ai_paragraphs)
-            ai_paragraphs.insert(insert_idx, new_html)
+            if insert_idx > len(working_paragraphs):
+                insert_idx = len(working_paragraphs)
+            working_paragraphs.insert(insert_idx, new_html)
             combined_highlights = adjust_highlights_for_paragraph_change(
                 combined_highlights, 'add', insert_idx + 1,
                 text_after=new_html,
@@ -392,11 +405,11 @@ def apply_grouped_changes(element, changes, valid_from, change_data, data, log_c
             )
             if log_callback:
                 log_callback(f"  Абзац {target_idx} добавлен", 'result')
-    final_html = '\n'.join(ai_paragraphs)
+    final_html = '\n'.join(working_paragraphs)
     final_html = strip_number_from_element_html(final_html, str(element.get('item_number', '')), element.get('item_type'))
     if element.get('_is_table_child', False) and not re.search(r'<table|<tr|<td|<th', final_html, re.IGNORECASE):
         log_callback(
-            f"  Результат обработки ИИ для табличного элемента {element.get('item_id')} "
+            f"  Результат обработки агентом для табличного элемента {element.get('item_id')} "
             f"не содержит табличной разметки. Изменение не будет применено.",
             'error'
         )
@@ -746,9 +759,9 @@ def _apply_change_to_appendix_prefix(change, data, change_data, valid_from, rev_
         if log_callback:
             log_callback(f"  Префикс извлечён из кавычек: '{new_prefix}'", 'source')
     elif ch_type == 'change':
-        answer = get_stage4_answer(f"prefix_{app_element.get('item_id')}", log_callback)
+        answer = get_stage4_agent_answer(f"prefix_{app_element.get('item_id')}", log_callback)
         if answer:
-            answer_html, _ = parse_ai_response_for_prompt4(answer, log_callback)
+            answer_html, _ = parse_stage4_answer(answer, log_callback)
             match = re.search(r'<p>(.*?)</p>', answer_html, re.DOTALL)
             new_prefix = match.group(1).strip() if match else answer_html.strip()
     elif ch_type == 'delete':
@@ -812,16 +825,16 @@ def _apply_change_to_head(change, data, change_data, valid_from, rev_number,
         if log_callback:
             log_callback(f"  Текущий заголовок: {current_head}", 'input')
         if log_callback:
-            log_callback("  Запрос к ИИ для нового заголовка...", 'info')
-        answer = get_stage4_answer("head", log_callback)
+            log_callback("  Запрос к агенту для нового заголовка...", 'info')
+        answer = get_stage4_agent_answer("head", log_callback)
         if answer is None:
             if log_callback:
-                log_callback("  Не удалось получить ответ от ИИ для заголовка", 'error')
+                log_callback("  Не удалось получить ответ агента для заголовка", 'error')
             return False
-        answer_html, highlights = parse_ai_response_for_prompt4(answer, log_callback)
+        answer_html, highlights = parse_stage4_answer(answer, log_callback)
         if not answer_html:
             if log_callback:
-                log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+                log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
             return False
         match = re.search(r'<p>(.*?)</p>', answer_html, re.DOTALL)
         new_head = match.group(1).strip() if match else answer_html.strip()
@@ -943,14 +956,14 @@ def _apply_change_to_element_head(change, data, change_data, valid_from, rev_num
     elif ch_type == 'change':
         current_head = get_current_head(target_element)
         log_callback(f"Текущее наименование: {current_head}", 'input')
-        log_callback("  Запрос к ИИ для изменения наименования...", 'info')
-        answer_head = get_stage4_answer(f"{target_element.get('item_id')}_head", log_callback)
+        log_callback("  Запрос к агенту для изменения наименования...", 'info')
+        answer_head = get_stage4_agent_answer(f"{target_element.get('item_id')}_head", log_callback)
         if answer_head is None:
-            log_callback("  Не удалось получить ответ от ИИ для наименования", 'error')
+            log_callback("  Не удалось получить ответ агента для наименования", 'error')
             return False
-        answer_html, highlights = parse_ai_response_for_prompt4(answer_head, log_callback)
+        answer_html, highlights = parse_stage4_answer(answer_head, log_callback)
         if not answer_html:
-            log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+            log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
             return False
         head_match = re.search(r'<p>(.*?)</p>', answer_html, re.DOTALL)
         new_head = head_match.group(1).strip() if head_match else safe_re_sub(r'<[^>]+>', '', answer_html).strip()
@@ -1031,16 +1044,16 @@ def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
         if log_callback:
             log_callback(f"  Текущий HTML преамбулы (длина {len(current_html)} символов)", 'input')
         if log_callback:
-            log_callback("  Запрос к ИИ для изменения преамбулы...", 'info')
-        answer = get_stage4_answer(f"{element.get('item_id')}_content", log_callback)
+            log_callback("  Запрос к агенту для изменения преамбулы...", 'info')
+        answer = get_stage4_agent_answer(f"{element.get('item_id')}_content", log_callback)
         if answer is None:
             if log_callback:
-                log_callback("  Не удалось получить ответ от ИИ", 'error')
+                log_callback("  Не удалось получить ответ агента", 'error')
             return False
-        answer_html, highlights = parse_ai_response_for_prompt4(answer, log_callback)
+        answer_html, highlights = parse_stage4_answer(answer, log_callback)
         if not answer_html:
             if log_callback:
-                log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+                log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
             return False
         answer_html = safe_re_sub(r'(?i)^\s*<target_html>\s*', '', answer_html)
         answer_html = safe_re_sub(r'(?i)\s*</target_html>\s*$', '', answer_html)
@@ -1052,7 +1065,7 @@ def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
         new_revision = _make_new_revision(new_body, mod_type='change', modified_by_id=modified_by_id_str, highlights=highlights)
         revisions.append(new_revision)
         if log_callback:
-            log_callback("  Получен новый HTML от ИИ для преамбулы", 'result')
+            log_callback("  Получен новый HTML от агента для преамбулы", 'result')
         return True
     elif ch_type == 'new_redaction':
         if '_quoted_html' in change:
@@ -1161,16 +1174,16 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
                         log_callback("  Преобразовано описание в нумерованный список", 'info')
                     description = formatted_desc
                 if log_callback:
-                    log_callback("  Запрос к ИИ для изменения элемента (с дочерними)...", 'info')
-                answer = get_stage4_answer("preamble", log_callback)
+                    log_callback("  Запрос к агенту для изменения элемента (с дочерними)...", 'info')
+                answer = get_stage4_agent_answer("preamble", log_callback)
             if answer is None:
                 if log_callback:
-                    log_callback("  Не удалось получить ответ от ИИ", 'error')
+                    log_callback("  Не удалось получить ответ агента", 'error')
                 return False
-            answer_html, highlights = parse_ai_response_for_prompt4(answer, log_callback)
+            answer_html, highlights = parse_stage4_answer(answer, log_callback)
             if not answer_html:
                 if log_callback:
-                    log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+                    log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
                 return False
             paragraphs = split_html_to_paragraphs(answer_html)
             if not paragraphs:
@@ -1203,7 +1216,7 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
             revisions.append(new_rev)
             rebuild_ids.append(element['item_id'])
             if log_callback:
-                log_callback("  Элемент обновлён через ИИ (сохранён HTML для перестройки)", 'result')
+                log_callback("  Элемент обновлён через агента (сохранён HTML для перестройки)", 'result')
             return True
         else:
             is_table_child = element.get('_is_table_child', False)
@@ -1261,16 +1274,16 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
                         log_callback("  Преобразовано описание в нумерованный список", 'info')
                     description = formatted_desc
                 if log_callback:
-                    log_callback("  Запрос к ИИ (промпт 4)...", 'info')
-                answer = get_stage4_answer(f"{element.get('item_id')}_content", log_callback)
+                    log_callback("  Запрос к агенту (промпт 4)...", 'info')
+                answer = get_stage4_agent_answer(f"{element.get('item_id')}_content", log_callback)
                 if answer is None:
                     if log_callback:
-                        log_callback("  Не удалось получить ответ от ИИ", 'error')
+                        log_callback("  Не удалось получить ответ агента", 'error')
                     return False
-                answer_html, highlights = parse_ai_response_for_prompt4(answer, log_callback)
+                answer_html, highlights = parse_stage4_answer(answer, log_callback)
                 if not answer_html:
                     if log_callback:
-                        log_callback("  Не удалось извлечь HTML из ответа ИИ", 'error')
+                        log_callback("  Не удалось извлечь HTML из ответа агента", 'error')
                     return False
                 answer_html = safe_re_sub(r'(?i)^\s*<target_html>\s*', '', answer_html)
                 answer_html = safe_re_sub(r'(?i)\s*</target_html>\s*$', '', answer_html)
@@ -1292,7 +1305,7 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
                 revisions.append(new_revision)
                 rebuild_ids.append(element['item_id'])
                 if log_callback:
-                    log_callback(f"  Получен новый HTML от ИИ (длина {len(answer_html)} символов)", 'result')
+                    log_callback(f"  Получен новый HTML от агента (длина {len(answer_html)} символов)", 'result')
                 return True
     elif ch_type == 'new_redaction':
         if modified_by_id_str is None:
@@ -1425,4 +1438,136 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
         if log_callback:
             log_callback(f"  Неизвестный тип: {ch_type}", 'warning')
         return False
+
+
+def apply_stage1_revocation(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
+    """Применить изменение этапа 1 (утрата силы) к целевому документу."""
+    structural_for_delete = change.get('structural_element_for_delete', '').strip()
+    valid_from_str = change.get('valid_from', '')
+    change_date = _parse_change_date(valid_from_str, valid_from_dt)
+    mod_by = source_npa_id or str(data.get('npa_id', ''))
+    if not mod_by:
+        mod_by = str(data.get('npa_id', ''))
+
+    if structural_for_delete == 'law' or structural_for_delete.lower() == 'закон':
+        head_rev = data.get('head_revision', [])
+        if not isinstance(head_rev, list) or not head_rev:
+            log_callback("  Stage 1: head_revision отсутствует для утраты закона", 'error')
+            return False
+        active_idx = -1
+        for i, rev in enumerate(head_rev):
+            if rev.get('valid_to') in (None, ''):
+                active_idx = i
+                break
+        if active_idx == -1 and head_rev:
+            active_idx = len(head_rev) - 1
+        valid_to_str = close_revision_date(change_date)
+        if active_idx >= 0:
+            head_rev[active_idx]['valid_to'] = valid_to_str
+        head_rev.append({
+            'npa_head': '',
+            'mod_type': 'delete',
+            'modified_by_id': mod_by,
+            'valid_from': change_date.strftime('%d.%m.%Y'),
+        })
+        data['head_revision'] = head_rev
+        log_callback("  Stage 1: утрата силы всего закона применена", 'result')
+        return True
+
+    target = None
+    try:
+        target = _find_existing_element_flexible(data, structural_for_delete, log_callback)
+    except ValueError:
+        if strict:
+            log_callback(f"  Stage 1: неоднозначность для '{structural_for_delete}', отказ (strict)", 'error')
+            return False
+        target = None
+    if not target:
+        log_callback(f"  Stage 1: элемент не найден для утраты: {structural_for_delete}", 'error')
+        return False
+    revs = target.get('revisions', [])
+    active_idx = -1
+    for i, rev in enumerate(revs):
+        if rev.get('valid_to') in (None, ''):
+            active_idx = i
+            break
+    if active_idx == -1 and revs:
+        active_idx = len(revs) - 1
+    if active_idx >= 0:
+        revs[active_idx]['valid_to'] = close_revision_date(change_date)
+        revs[active_idx]['not_valid'] = mod_by
+    new_rev = _make_new_revision([], mod_type='delete', modified_by_id=mod_by)
+    new_rev['valid_from'] = change_date.strftime('%d.%m.%Y')
+    revs.append(new_rev)
+    target['revisions'] = revs
+    log_callback(f"  Stage 1: утрата силы элемента '{structural_for_delete}' применена", 'result')
+    return True
+
+
+def apply_stage2_date_change(data, change, valid_from_dt, log_callback, source_npa_id=None, strict=False):
+    """Применить изменение этапа 2 (специальные даты / ретроактивные notes)."""
+    applies_to = change.get('applies_to', '').strip()
+    action_type = change.get('action_type', '').strip()
+    structural = change.get('structural_element', '').strip()
+    special_date = change.get('date', '')
+    change_date = _parse_change_date(special_date, valid_from_dt)
+    mod_by = source_npa_id or str(data.get('npa_id', ''))
+
+    target = None
+    if applies_to == 'target_law' or applies_to == 'target':
+        try:
+            target = _find_existing_element_flexible(data, structural, log_callback)
+        except ValueError:
+            if strict:
+                log_callback(f"  Stage 2: неоднозначность для '{structural}', отказ (strict)", 'error')
+                return False
+            target = None
+    if action_type == 'special_valid_from':
+        if target is None:
+            log_callback(f"  Stage 2: элемент не найден для special_valid_from: {structural}", 'error')
+            return False
+        revs = target.get('revisions', [])
+        active_idx = -1
+        for i, rev in enumerate(revs):
+            if rev.get('valid_to') in (None, ''):
+                active_idx = i
+                break
+        if active_idx == -1 and revs:
+            active_idx = len(revs) - 1
+        if active_idx >= 0:
+            revs[active_idx]['valid_to'] = close_revision_date(change_date)
+        new_rev = {'mod_type': 'new_redaction', 'modified_by_id': mod_by,
+                   'valid_from': change_date.strftime('%d.%m.%Y'), 'body': []}
+        revs.append(new_rev)
+        target['revisions'] = revs
+        log_callback(f"  Stage 2: special_valid_from применена к '{structural}' с датой {change_date}", 'result')
+        return True
+    if action_type == 'retroactive_note':
+        if target is None:
+            log_callback(f"  Stage 2: элемент не найден для retroactive_note: {structural}", 'error')
+            return False
+        note_date = change.get('note_valid_from', special_date)
+        note = {
+            'text': f"Действие положений {structural} распространяется на правоотношения, "
+                    f"возникшие с {note_date}",
+            'valid_from': note_date,
+            'valid_to': '',
+        }
+        notes = target.setdefault('item_notes', [])
+        if not isinstance(notes, list):
+            notes = []
+        notes.append(note)
+        target['item_notes'] = notes
+        log_callback(f"  Stage 2: retroactive_note добавлен к '{structural}'", 'result')
+        return True
+    return False
+
+
+def _parse_change_date(date_str, fallback_dt):
+    if not date_str:
+        return fallback_dt
+    try:
+        return datetime.strptime(date_str, '%d.%m.%Y').date()
+    except (ValueError, TypeError):
+        return fallback_dt
 

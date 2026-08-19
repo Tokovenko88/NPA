@@ -182,7 +182,7 @@ def run_single_pipeline(result_dir=None):
     return os.path.join(search_dir, result_files[0])
 
 
-def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=None):
+def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=None, stop_on_error=False):
     """
     Run the chain pipeline.
 
@@ -191,6 +191,7 @@ def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=
         explicit_target: Optional filename in input_folder to use as target
         output_dir: Output directory for chain results
         answers_base: Base folder for stage answers per amendment
+        stop_on_error: If True, stop chain on first step failure
     """
     if output_dir is None:
         output_dir = CHAIN_RESULTS_DIR
@@ -259,6 +260,9 @@ def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=
                 'error': 'Pipeline did not produce a result',
             })
             shutil.rmtree(step_result_dir, ignore_errors=True)
+            if stop_on_error:
+                log("Stopping chain due to --stop-on-error", 'error')
+                break
             continue
 
         result_data = load_json(result_path)
@@ -337,10 +341,12 @@ if __name__ == '__main__':
     parser.add_argument('--target', help='Explicit target filename in input folder (optional)')
     parser.add_argument('--output', help='Output directory for chain results (default: work/chain_results)')
     parser.add_argument('--answers', help='Base folder with stage answers per amendment (optional)')
+    parser.add_argument('--stop-on-error', action='store_true',
+                        help='Stop chain on first step failure (default: continue)')
     args = parser.parse_args()
 
     if not os.path.isdir(args.input_folder):
         log(f"Input folder not found: {args.input_folder}", 'error')
         sys.exit(1)
 
-    run_chain(args.input_folder, args.target, args.output, args.answers)
+    run_chain(args.input_folder, args.target, args.output, args.answers, stop_on_error=args.stop_on_error)
