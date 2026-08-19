@@ -59,7 +59,16 @@ All NPA modifications MUST produce deterministic, repeatable results:
 - All decisions must be traceable to specific rules or examples
 - If ambiguity arises, flag it in the report rather than guessing
 
-### 2.5 BUGS IN BASE
+### 2.6 TEMPORARY FILES CLEANUP
+
+If you create temporary scripts, test files, debug outputs, or helper files during task execution:
+- **Delete them immediately after the iteration/task is complete.**
+- Only permanent, reusable code that is part of the project structure should remain.
+- This applies to: one-off helper scripts, debug scripts, test fixtures, temporary JSON dumps, scratch files.
+- Do NOT leave temporary `.py` files, `.json` dumps, or markdown notes in the project root or `scripts/` unless they are intended for permanent use.
+- Before submitting, verify that no temporary files remain in the workspace.
+
+### 2.7 BUGS IN BASE
 
 If you discover bugs, errors, or inconsistencies in `База/` (the incomplete NPA database):
 - DO NOT modify files in `База/`
