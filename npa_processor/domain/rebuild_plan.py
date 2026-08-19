@@ -1,7 +1,7 @@
 """Pure planning helpers for deterministic element rebuild order.
 
 This module contains only deterministic planning logic. It does not mutate the
-NPA document and does not execute a rebuild.
+aNPA document and does not execute a rebuild.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def build_parent_map(items: Iterable[Mapping]) -> dict[str, str | None]:
             if item_id:
                 parent_map[normalized_id] = parent_id
             nested = item.get("item_children", [])
-            if isinstance(nested, list):
+            if isinstance(nested, (list, tuple)):
                 walk(nested, normalized_id)
 
     walk(items)
@@ -67,10 +67,16 @@ def rebuild_order(item_ids: Iterable[str], parent_map: Mapping[str, str | None])
         if not any(ancestor in requested for ancestor in ancestor_ids(item_id, parent_map))
     }
 
-    def depth(item_id: str) -> int:
-        return len(ancestor_ids(item_id, parent_map))
-
-    return sorted(effective, key=lambda value: (-depth(value), value))
+    # ``ancestor_ids`` walks the complete parent chain. Cache those results so
+    # sorting does not repeatedly traverse the same chains for every element.
+    ancestors_by_id = {
+        item_id: ancestor_ids(item_id, parent_map)
+        for item_id in effective
+    }
+    return sorted(
+        effective,
+        key=lambda value: (-len(ancestors_by_id[value]), value),
+    )
 
 
 def build_rebuild_plan(document: Mapping, item_ids: Iterable[str]) -> RebuildPlan:
@@ -80,7 +86,7 @@ def build_rebuild_plan(document: Mapping, item_ids: Iterable[str]) -> RebuildPla
     consumers so tree metadata is not reconstructed a second time.
     """
     roots = document.get("npa_items_revision", [])
-    if not isinstance(roots, list):
+    if not isinstance(roots, (list, tuple)):
         roots = []
     parent_map = build_parent_map(roots)
     valid_ids = (str(item_id) for item_id in item_ids if str(item_id) in parent_map)
