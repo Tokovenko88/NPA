@@ -3,29 +3,9 @@
 Chain Pipeline Processor
 Sequentially applies multiple NPA amendments to a target NPA.
 
-Each amendment is applied in chronological order (oldest number -> newest number).
-For each step, the pipeline is executed in-process and the intermediate result is saved
-to the chain results folder.
-
-Usage:
-    python chain_pipeline.py <input_folder> [--target target_file.json] [--output work/chain_results] [--answers answers_base]
-
-Input folder structure (flat):
-    chain_input/
-        target_npa.json          # Optional: explicitly named target
-        269-ЗС.json              # Amendment 1
-        380-ЗС.json              # Amendment 2
-        stage_answers/
-            269-ЗС/
-                prompt_1_answer.json
-                prompt_2_answer.json
-                ...
-            380-ЗС/
-                prompt_1_answer.json
-                ...
-
-If target_npa.json is not present, the oldest NPA by date is used as target.
-    If stage_answers/ subfolder is not present, pipeline runs with existing answers in work/answers/.
+Each amendment is applied in chronological order using the canonical NPA date
+parser. A failed step stops the chain by default; use --continue-on-error only
+when intentionally accepting a non-contiguous chain.
 """
 
 import argparse
@@ -40,6 +20,7 @@ from npa_processor.logging_utils import log
 
 _bootstrap_project_root()
 
+from npa_processor.domain.dates import parse_npa_date  # noqa: E402
 from npa_processor.paths import (  # noqa: E402
     ANSWERS_DIR,
     CHAIN_RESULTS_DIR,
@@ -56,9 +37,8 @@ from scripts.run_pipeline import main as run_pipeline_main  # noqa: E402
 BASE_DIR = PROJECT_ROOT
 
 
-
 def extract_npa_number(npa_json):
-    """Extract numeric part from npa_number for sorting."""
+    """Extract numeric part from npa_number for deterministic tie-breaking."""
     number = npa_json.get('npa_number', '')
     digits = re.findall(r'\d+', number)
     if digits:
@@ -67,28 +47,25 @@ def extract_npa_number(npa_json):
 
 
 def get_npa_date(npa_json):
-    """Get the signing/publication date of an NPA."""
+    """Get the NPA date using the canonical date parser."""
     for key in ('date_signed', 'date_pub', 'valid_from'):
         date_str = npa_json.get(key, '')
         if not date_str:
             continue
-        for fmt in ('%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y'):
-            try:
-                return datetime.strptime(date_str, fmt)
-            except ValueError:
-                continue
-    return datetime.max
+        try:
+            return parse_npa_date(date_str, field_name=key)
+        except ValueError:
+            log(f"Invalid {key} in NPA {npa_json.get('npa_number', '')}: {date_str!r}", 'warning')
+            continue
+    return datetime.max.date()
 
 
 def scan_input_folder(input_folder):
-    """
-    Scan input folder for NPA JSON files.
-    Returns (target_meta, amendment_metas) where amendment_metas is sorted by number ascending.
-    """
-    json_files = []
-    for fname in os.listdir(input_folder):
-        if fname.endswith('.json') and os.path.isfile(os.path.join(input_folder, fname)):
-            json_files.append(fname)
+    """Scan input folder and return target plus chronologically sorted amendments."""
+    json_files = [
+        fname for fname in os.listdir(input_folder)
+        if fname.endswith('.json') and os.path.isfile(os.path.join(input_folder, fname))
+    ]
 
     if not json_files:
         raise ValueError(f"No JSON files found in {input_folder}")
@@ -111,31 +88,24 @@ def scan_input_folder(input_folder):
     if not files_meta:
         raise ValueError("No valid NPA JSON files found")
 
-    # Identify target: explicit name wins, then oldest by date
-    target_file = None
-    for meta in files_meta:
-        if meta['filename'].lower() == 'target_npa.json':
-            target_file = meta
-            break
-
+    target_file = next(
+        (meta for meta in files_meta if meta['filename'].lower() == 'target_npa.json'),
+        None,
+    )
     if target_file is None:
-        files_meta.sort(key=lambda x: x['date'])
+        files_meta.sort(key=lambda x: (x['date'], x['number'], x['filename']))
         target_file = files_meta[0]
 
     amendments = [m for m in files_meta if m['filename'] != target_file['filename']]
-    amendments.sort(key=lambda x: (x['number'], x['date']))
-
+    amendments.sort(key=lambda x: (x['date'], x['number'], x['filename']))
     return target_file, amendments
 
 
 def setup_working_dirs(target_path, source_path, answers_subdir=None):
     """Copy files to working directories and clean stage answers."""
     os.makedirs(SOURCE_DIR, exist_ok=True)
-    target_dest = os.path.join(SOURCE_DIR, 'target_npa.json')
-    shutil.copy2(target_path, target_dest)
-
-    source_dest = os.path.join(SOURCE_DIR, 'source_npa.json')
-    shutil.copy2(source_path, source_dest)
+    shutil.copy2(target_path, os.path.join(SOURCE_DIR, 'target_npa.json'))
+    shutil.copy2(source_path, os.path.join(SOURCE_DIR, 'source_npa.json'))
 
     if os.path.exists(ANSWERS_DIR):
         for fname in os.listdir(ANSWERS_DIR):
@@ -181,17 +151,8 @@ def run_single_pipeline(result_dir=None):
     return os.path.join(search_dir, result_files[0])
 
 
-def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=None, stop_on_error=False):
-    """
-    Run the chain pipeline.
-
-    Args:
-        input_folder: Folder containing target and amendment JSON files
-        explicit_target: Optional filename in input_folder to use as target
-        output_dir: Output directory for chain results
-        answers_base: Base folder for stage answers per amendment
-        stop_on_error: If True, stop chain on first step failure
-    """
+def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=None, continue_on_error=False):
+    """Run the chain; stop on failure unless explicitly told to continue."""
     if output_dir is None:
         output_dir = CHAIN_RESULTS_DIR
     os.makedirs(output_dir, exist_ok=True)
@@ -228,26 +189,23 @@ def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=
     for i, amendment in enumerate(amendments, 1):
         amendment_name = os.path.splitext(amendment['filename'])[0]
         amendment_path = amendment['path']
-
         log(f"\n{'=' * 60}", 'info')
         log(f"STEP {i}/{len(amendments)}: {amendment_name}", 'info')
         log(f"{'=' * 60}", 'info')
 
         answers_subdir = None
         if answers_base:
-            for candidate in [
+            for candidate in (
                 os.path.join(answers_base, amendment_name),
                 os.path.join(answers_base, amendment['filename']),
-            ]:
+            ):
                 if os.path.isdir(candidate):
                     answers_subdir = candidate
                     break
 
         setup_working_dirs(current_target_path, amendment_path, answers_subdir)
-
         step_result_dir = os.path.join(CHAIN_RESULTS_DIR, f'step_{i:02d}_temp')
         os.makedirs(step_result_dir, exist_ok=True)
-
         result_path = run_single_pipeline(result_dir=step_result_dir)
 
         if result_path is None:
@@ -259,54 +217,45 @@ def run_chain(input_folder, explicit_target=None, output_dir=None, answers_base=
                 'error': 'Pipeline did not produce a result',
             })
             shutil.rmtree(step_result_dir, ignore_errors=True)
-            if stop_on_error:
-                log("Stopping chain due to --stop-on-error", 'error')
+            if not continue_on_error:
+                log("Stopping chain after failed step (use --continue-on-error to override)", 'error')
                 break
             continue
 
         result_data = load_json(result_path)
         result_filename = os.path.basename(result_path)
-        chain_result_name = f"step_{i:02d}_{result_filename}"
-        chain_result_path = os.path.join(output_dir, chain_result_name)
+        chain_result_path = os.path.join(output_dir, f"step_{i:02d}_{result_filename}")
         save_json(chain_result_path, result_data)
 
         if os.path.exists(REPORT_PATH):
-            step_report_path = os.path.join(output_dir, f"step_{i:02d}_report.md")
-            shutil.copy2(REPORT_PATH, step_report_path)
+            shutil.copy2(REPORT_PATH, os.path.join(output_dir, f"step_{i:02d}_report.md"))
 
         log(f"STEP {i} SUCCESS: {chain_result_path}", 'result')
-
         chain_report.append({
             'step': i,
             'amendment': amendment_name,
             'status': 'success',
             'result_file': chain_result_path,
         })
-
         current_target_path = chain_result_path
         shutil.rmtree(step_result_dir, ignore_errors=True)
 
     report_path = os.path.join(output_dir, 'chain_report.md')
     generate_chain_report(report_path, target_file, amendments, chain_report)
     log(f"\nChain report: {report_path}", 'info')
-
     return chain_report
 
 
 def generate_chain_report(report_path, target_file, amendments, chain_report):
     lines = [
-        "# Chain Pipeline Report",
-        "",
-        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
+        "# Chain Pipeline Report", "",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "",
         "## Target NPA",
         f"- File: {target_file['filename']}",
         f"- Number: {target_file['data'].get('npa_number', '')}",
-        f"- Date: {target_file['data'].get('date_signed', '')}",
-        "",
+        f"- Date: {target_file['data'].get('date_signed', '')}", "",
         "## Amendments Applied (chronological order)",
     ]
-
     for report in chain_report:
         icon = "✅" if report['status'] == 'success' else "❌"
         lines.append(f"- Step {report['step']}: {icon} {report['amendment']}")
@@ -317,17 +266,13 @@ def generate_chain_report(report_path, target_file, amendments, chain_report):
 
     success_count = sum(1 for r in chain_report if r['status'] == 'success')
     lines.extend([
-        "",
-        "## Summary",
+        "", "## Summary",
         f"- Total steps: {len(chain_report)}",
         f"- Successful: {success_count}",
-        f"- Failed: {len(chain_report) - success_count}",
-        "",
+        f"- Failed: {len(chain_report) - success_count}", "",
         "## Results",
-        f"Intermediate results saved in: `{os.path.relpath(CHAIN_RESULTS_DIR, BASE_DIR)}`",
-        "",
+        f"Intermediate results saved in: `{os.path.relpath(CHAIN_RESULTS_DIR, BASE_DIR)}`", "",
     ])
-
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
 
@@ -340,15 +285,23 @@ def main(args=None):
     parser.add_argument('--target', help='Explicit target filename in input folder (optional)')
     parser.add_argument('--output', help='Output directory for chain results (default: work/chain_results)')
     parser.add_argument('--answers', help='Base folder with stage answers per amendment (optional)')
-    parser.add_argument('--stop-on-error', action='store_true',
-                        help='Stop chain on first step failure (default: continue)')
+    parser.add_argument(
+        '--continue-on-error', action='store_true',
+        help='Continue after a failed step (unsafe: later amendments may be applied to a non-contiguous result)',
+    )
     parsed = parser.parse_args(args)
 
     if not os.path.isdir(parsed.input_folder):
         log(f"Input folder not found: {parsed.input_folder}", 'error')
         sys.exit(1)
 
-    run_chain(parsed.input_folder, parsed.target, parsed.output, parsed.answers, stop_on_error=parsed.stop_on_error)
+    run_chain(
+        parsed.input_folder,
+        parsed.target,
+        parsed.output,
+        parsed.answers,
+        continue_on_error=parsed.continue_on_error,
+    )
 
 
 if __name__ == '__main__':
