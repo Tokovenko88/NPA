@@ -17,7 +17,7 @@ python scripts/run_pipeline.py --source path/to/source.json --target path/to/tar
 - `--keep-previous` — preserve previous results
 - `--strict` — abort on ambiguous resolution
 - `--dry-run` — validate without writing output
-- `--stage N` — run only up to stage N (1-5)
+- `--stage N` — executes stages 1..N inclusively; stages > N are skipped
 
 ## chain_pipeline.py
 

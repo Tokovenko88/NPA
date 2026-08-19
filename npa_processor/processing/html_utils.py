@@ -545,7 +545,7 @@ def _correct_table_highlights(old_html, new_html, highlights, log_callback=None)
         return highlights
 
 def parse_stage4_answer(response_text, change_description="", log_callback=None):
-    from npa_processor.processing.ui_utils import _normalize_highlights_positions
+    from npa_processor.processing.element_ops import _normalize_highlights_positions
     if not response_text:
         return "", None
     response_text = strip_thinking_tags(response_text)

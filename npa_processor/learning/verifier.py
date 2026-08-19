@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 
+from npa_processor.processing.tree_utils import find_item_by_id
+
 VALID_ITEM_TYPES = {
     'preamble', 'chapter', 'section', 'article', 'part', 'point',
     'subpoint', 'appendix', 'nested_appendix', 'structured_table',
@@ -152,19 +154,6 @@ def _expected_valid_to(valid_from):
     if vf is None:
         return None
     return (vf - timedelta(days=1)).strftime('%d.%m.%Y')
-
-
-def _find_item_by_id(data, item_id):
-    root = data.get('npa_items_revision', []) if isinstance(data, dict) else []
-    def recurse(items):
-        for item in items:
-            if item.get('item_id') == item_id:
-                return item
-            found = recurse(item.get('item_children', []))
-            if found:
-                return found
-        return None
-    return recurse(root)
 
 
 def _walk_items(data):
@@ -512,7 +501,7 @@ class StructureVerifier:
     # 9. РџСЂРѕРІРµСЂРєР° РѕР¶РёРґР°РµРјС‹С… РёР·РјРµРЅРµРЅРёР№ (СЃРІРµСЂРєР° СЃ РѕС‚РІРµС‚Р°РјРё СЌС‚Р°РїРѕРІ)
     # ------------------------------------------------------------------
     def _resolve_target(self, data, structural):
-        from npa_processor.processing.ui_utils import _find_existing_element_flexible
+        from npa_processor.processing.element_ops import _find_existing_element_flexible
         if not structural:
             return None
         try:

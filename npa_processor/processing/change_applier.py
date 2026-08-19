@@ -37,7 +37,7 @@ from npa_processor.processing.tree_utils import (
     find_child_by_type_and_number,
     find_item_by_id,
 )
-from npa_processor.processing.ui_utils import (
+from npa_processor.processing.element_ops import (
     _add_new_element,
     _close_revision,
     _ensure_path,

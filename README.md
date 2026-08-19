@@ -57,7 +57,7 @@ python scripts/run_pipeline.py --source path/to/source.json --target path/to/tar
 - `--source` — path to source NPA JSON (default: `work/source/source_npa.json`)
 - `--target` — path to target NPA JSON (default: `work/source/target_npa.json`)
 - `--dry-run` — validate and plan changes without writing output
-- `--stage N` — run only up to specified stage (1-5)
+- `--stage N` — executes stages 1..N inclusively; stages > N are skipped (1: revocation/dates, 2: dates, 3: load changes, 4: learning supplement for text, 5: apply + rebuild)
 - `--result-dir` — custom result directory (default: `work/results`)
 - `--keep-previous` — do not delete previous results
 - `--strict` — abort on ambiguous element resolution

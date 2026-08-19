@@ -1,4 +1,4 @@
-"""Утилиты для обработки элементов НПА."""
+"""Операции над элементами дерева НПА (поиск, добавление, rebuild)."""
 
 import copy
 import json
@@ -25,6 +25,7 @@ from npa_processor.processing.text_utils import (
     clean_html_text,
     close_revision_date,
     get_element_text,
+    normalize_item_number,
     parse_num,
     safe_re_sub,
 )
@@ -51,15 +52,6 @@ _ETYPE_WORDS = {
 def normalize_ru_type(ru_type):
     return _ETYPE_WORDS.get(ru_type, ru_type)
 
-def normalize_item_number(item_type, number):
-    if not number:
-        return number
-    number = str(number).strip()
-    number = number.strip('«»“”‘’"\'')
-    number = number.strip()
-    if item_type in ('point', 'subpoint') and not number.endswith(')'):
-        return number + ')'
-    return number
 
 def collect_item_ids(item, ids_set):
     if 'item_id' in item:

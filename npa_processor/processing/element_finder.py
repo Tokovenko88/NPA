@@ -19,7 +19,7 @@ def find_element_and_parent(data, target_id):
     return recurse(data.get('npa_items_revision', []))
 
 def find_item_id_by_element_string(data, structural, log_callback=None, ambiguous_callback=None):
-    from npa_processor.processing.ui_utils import _find_existing_element_flexible
+    from npa_processor.processing.element_ops import _find_existing_element_flexible
     elem = _find_existing_element_flexible(data, structural, log_callback, ambiguous_callback)
     if elem:
         return elem.get('item_id')
@@ -124,7 +124,7 @@ def _resolve_modified_by_ids(rev_number, change_data, source_element, source_ite
             return None
         if any(w in str(rev).lower() for w in ['статья', 'пункт', 'часть', 'подпункт', 'абзац', 'глава', 'раздел', 'приложение']):
             try:
-                from npa_processor.processing.ui_utils import _find_existing_element_flexible
+                from npa_processor.processing.element_ops import _find_existing_element_flexible
                 elem = _find_existing_element_flexible(change_data, str(rev), log_callback)
                 if elem:
                     return elem.get('item_id')

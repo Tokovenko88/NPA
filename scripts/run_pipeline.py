@@ -42,7 +42,7 @@ from npa_processor.processing.html_utils import (  # noqa: E402
 )
 from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
 from npa_processor.processing.tree_utils import _find_target_element  # noqa: E402
-from npa_processor.processing.ui_utils import (  # noqa: E402
+from npa_processor.processing.element_ops import (  # noqa: E402
     _find_existing_element_flexible,
     _make_new_revision,
     clean_number_for_filename,
@@ -180,9 +180,9 @@ def _attempt_recover_change(change, result_data, source, valid_from_dt, source_i
                 change=change, data=result_data, change_data=source, law_ref=None,
                 general_valid_from=valid_from_dt, log_callback=log_callback,
                 source_item_id=source_item_id,
-                rebuild_ids=rebuild_ids, doc_type='law', extra_options=None,
+                rebuild_ids=rebuild_ids, doc_type=doc_type, extra_options=None,
 
-                source_context_root=_find_target_element(source, result_data, log_callback, 'law')
+                source_context_root=_find_target_element(source, result_data, log_callback, doc_type)
                 if result_data.get('npa_items_revision') else source,
                 ambiguous_callback=None,
             )
@@ -528,6 +528,14 @@ def main(args=None):
     source = load_json(source_path)
     target = load_json(target_path)
 
+    doc_type = (
+        target.get('doc_type')
+        or target.get('npa_type')
+        or source.get('doc_type')
+        or source.get('npa_type')
+        or 'law'
+    )
+
     valid_from_date_str = source.get('valid_from', '')
     if not valid_from_date_str:
         valid_from_date_str = source.get('date_signed', '')
@@ -553,7 +561,7 @@ def main(args=None):
     manual_corrections = []
     change_log = []
 
-    source_context_root = _find_target_element(source, target, log, 'law')
+    source_context_root = _find_target_element(source, target, log, doc_type)
     if source_context_root is None:
         source_context_root = source
         log("  Warning: _find_target_element returned None, using entire source NPA as context")
@@ -561,49 +569,55 @@ def main(args=None):
     log(f"  Source context root: {source_context_root.get('item_id', 'root')}")
     source_item_id = source_context_root.get('item_id')
 
+    stage1_changes = []
+    stage1_applied = 0
+    stage1_failed = 0
     if not parsed.stage or parsed.stage >= 1:
         # ========== STAGE 1: Revocation Analysis ==========
         log("Stage 1: Revocation analysis.")
-    stage1_changes = _load_stage_answers('prompt_1_answer', log)
-    stage1_applied = 0
-    stage1_failed = 0
-    for change in stage1_changes:
-        try:
-            ok = apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
-            if ok:
-                stage1_applied += 1
-                history.snapshot(f'after_stage1_revoke_{stage1_applied}', result_data,
-                                 {'change': change, 'applied': True})
-            else:
+        stage1_changes = _load_stage_answers('prompt_1_answer', log)
+        for change in stage1_changes:
+            try:
+                ok = apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
+                if ok:
+                    stage1_applied += 1
+                    history.snapshot(f'after_stage1_revoke_{stage1_applied}', result_data,
+                                     {'change': change, 'applied': True})
+                else:
+                    stage1_failed += 1
+                    errors.append(f"Stage 1 failed: {change.get('structural_element_for_delete', '')}")
+            except Exception as e:
                 stage1_failed += 1
-                errors.append(f"Stage 1 failed: {change.get('structural_element_for_delete', '')}")
-        except Exception as e:
-            stage1_failed += 1
-            errors.append(f"Stage 1 error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    log(f"  Stage 1: {len(stage1_changes)} найдено, применено {stage1_applied}, провалено {stage1_failed}")
+                errors.append(f"Stage 1 error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        log(f"  Stage 1: {len(stage1_changes)} найдено, применено {stage1_applied}, провалено {stage1_failed}")
+    else:
+        log("Stage 1: пропущен (--stage)")
 
+    stage2_changes = []
+    stage2_applied = 0
+    stage2_failed = 0
     if not parsed.stage or parsed.stage >= 2:
         # ========== STAGE 2: Dates Analysis ==========
         log("Stage 2: Dates and retroactive clauses analysis.")
-    stage2_changes = _load_stage_answers('prompt_2_answer', log)
-    stage2_applied = 0
-    stage2_failed = 0
-    for change in stage2_changes:
-        try:
-            ok = apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
-            if ok:
-                stage2_applied += 1
-                history.snapshot(f'after_stage2_{stage2_applied}', result_data,
-                                 {'change': change, 'applied': True})
-            else:
+        stage2_changes = _load_stage_answers('prompt_2_answer', log)
+        for change in stage2_changes:
+            try:
+                ok = apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
+                if ok:
+                    stage2_applied += 1
+                    history.snapshot(f'after_stage2_{stage2_applied}', result_data,
+                                     {'change': change, 'applied': True})
+                else:
+                    stage2_failed += 1
+                    errors.append(f"Stage 2 failed: {change.get('structural_element', '')}")
+            except Exception as e:
                 stage2_failed += 1
-                errors.append(f"Stage 2 failed: {change.get('structural_element', '')}")
-        except Exception as e:
-            stage2_failed += 1
-            errors.append(f"Stage 2 error: {str(e)}")
-    log(f"  Stage 2: {len(stage2_changes)} найдено, применено {stage2_applied}, провалено {stage2_failed}")
+                errors.append(f"Stage 2 error: {str(e)}")
+        log(f"  Stage 2: {len(stage2_changes)} найдено, применено {stage2_applied}, провалено {stage2_failed}")
+    else:
+        log("Stage 2: пропущен (--stage)")
 
     if not parsed.stage or parsed.stage >= 3:
         # ========== STAGE 3: Changes Extraction ==========
@@ -630,267 +644,265 @@ def main(args=None):
     if not parsed.stage or parsed.stage >= 4:
         # ========== STAGE 4: Text Processing ==========
         prompt_supplement = learner.get_prompt_supplement(stage=4)
-    if prompt_supplement:
-        log("  Подключены обучающие примеры подсветки из learning/seed_examples.json")
-    log("Stage 4: Using pre-generated answers from work/answers/ for change-type modifications.")
+        if prompt_supplement:
+            log("  Подключены обучающие примеры подсветки из learning/seed_examples.json")
+        log("Stage 4: Using pre-generated answers from work/answers/ for change-type modifications.")
 
-    # ========== STRUCTURAL REORGANIZATION ==========
-    reorg_applied = _detect_and_apply_structural_reorganization(
-        all_changes, result_data, valid_from_dt, source_npa_id, log, source_data=source
-    )
-    if reorg_applied:
-        history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
-
-    change_type_counts = {}
     if not parsed.stage or parsed.stage >= 5:
-        # ========== STAGE 5: Apply Changes ==========
-        pass
-    for change in all_changes:
-        ct = change.get('type', 'unknown')
-        change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
+        # ========== STRUCTURAL REORGANIZATION ==========
+        reorg_applied = _detect_and_apply_structural_reorganization(
+            all_changes, result_data, valid_from_dt, source_npa_id, log, source_data=source
+        )
+        if reorg_applied:
+            history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
 
-    for change in all_changes:
-        structural = change.get('structural_element', '').strip()
-        ch_type = change.get('type', '').strip()
-        structural_lower = structural.lower()
+        change_type_counts = {}
+        for change in all_changes:
+            ct = change.get('type', 'unknown')
+            change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
 
-        if structural_lower == 'наименование':
-            change['_resolved_item_id'] = '__наименование__'
-        elif structural_lower == 'нпа':
-            change['_resolved_item_id'] = None
-        elif structural_lower == 'преамбула':
-            change['_resolved_item_id'] = '__преамбула__'
-        else:
-            reliable_id = reliable_mappings.get(structural)
-            if reliable_id is not None:
-                change['_resolved_item_id'] = reliable_id
-                log(f"  Используем проверенный маппинг для '{structural}' → {reliable_id}")
+        for change in all_changes:
+            structural = change.get('structural_element', '').strip()
+            ch_type = change.get('type', '').strip()
+            structural_lower = structural.lower()
+
+            if structural_lower == 'наименование':
+                change['_resolved_item_id'] = '__наименование__'
+            elif structural_lower == 'нпа':
+                change['_resolved_item_id'] = None
+            elif structural_lower == 'преамбула':
+                change['_resolved_item_id'] = '__преамбула__'
             else:
-                target_elem = None
-                try:
-                    target_elem = _find_existing_element_flexible(result_data, structural, log)
-                except ValueError as e:
+                reliable_id = reliable_mappings.get(structural)
+                if reliable_id is not None:
+                    change['_resolved_item_id'] = reliable_id
+                    log(f"  Используем проверенный маппинг для '{structural}' → {reliable_id}")
+                else:
                     target_elem = None
-                    if parsed.strict:
-                        log(f"  Stage 5: неоднозначность для '{structural}', отказ (strict): {e}", 'error')
+                    try:
+                        target_elem = _find_existing_element_flexible(result_data, structural, log)
+                    except ValueError as e:
+                        target_elem = None
+                        if parsed.strict:
+                            log(f"  Stage 5: неоднозначность для '{structural}', отказ (strict): {e}", 'error')
+                            change['_resolved_item_id'] = None
+                            learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
+                            continue
+                        log(f"  Неоднозначность для '{structural}', элемент не разрешён", 'warning')
+                    if target_elem:
+                        change['_resolved_item_id'] = target_elem['item_id']
+                    else:
                         change['_resolved_item_id'] = None
                         learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
-                        continue
-                    log(f"  Неоднозначность для '{structural}', элемент не разрешён", 'warning')
-                if target_elem:
-                    change['_resolved_item_id'] = target_elem['item_id']
-                else:
-                    change['_resolved_item_id'] = None
-                    learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
 
-    changes_applied = 0
-    changes_failed = 0
-    for change_idx, change in enumerate(all_changes):
-        ch_type = change.get('type', '').strip()
-        structural = change.get('structural_element', '').strip()
-        applied = False
-        error_msg = ''
-        try:
-            ok = apply_change(
-                change=change,
-                data=result_data,
-                change_data=source,
-                law_ref=None,
-                general_valid_from=valid_from_dt,
-                log_callback=log,
-                source_item_id=source_item_id,
-                rebuild_ids=rebuild_ids,
-                doc_type='law',
-                extra_options=None,
-                source_context_root=source_context_root,
-                ambiguous_callback=None,
-            )
-            if ok:
-                changes_applied += 1
-                applied = True
-                resolved_id = change.get('_resolved_item_id') or None
-                if resolved_id and not structural.lower().startswith('наименование'):
-                    learner.record_mapping(structural, resolved_id, success=True,
-                                           source_context=source_npa_id)
-                if applied:
+        changes_applied = 0
+        changes_failed = 0
+        for change_idx, change in enumerate(all_changes):
+            ch_type = change.get('type', '').strip()
+            structural = change.get('structural_element', '').strip()
+            applied = False
+            error_msg = ''
+            try:
+                ok = apply_change(
+                    change=change,
+                    data=result_data,
+                    change_data=source,
+                    law_ref=None,
+                    general_valid_from=valid_from_dt,
+                    log_callback=log,
+                    source_item_id=source_item_id,
+                    rebuild_ids=rebuild_ids,
+                    doc_type=doc_type,
+                    extra_options=None,
+                    source_context_root=source_context_root,
+                    ambiguous_callback=None,
+                )
+                if ok:
+                    changes_applied += 1
+                    applied = True
+                    resolved_id = change.get('_resolved_item_id') or None
+                    if resolved_id and not structural.lower().startswith('наименование'):
+                        learner.record_mapping(structural, resolved_id, success=True,
+                                               source_context=source_npa_id)
+                    if applied:
+                        change_log.append({
+                            'structural_element': structural, 'type': ch_type,
+                            'applied': True, 'error': '',
+                        })
+                    log(f"  Applied: {structural} ({ch_type})")
+                    history.snapshot(f'after_change_{change_idx}', result_data,
+                                     {'structural_element': structural, 'type': ch_type, 'applied': True})
+                else:
+                    changes_failed += 1
+                    error_msg = 'apply_change returned False'
                     change_log.append({
                         'structural_element': structural, 'type': ch_type,
-                        'applied': True, 'error': '',
+                        'applied': False, 'error': error_msg,
                     })
-                log(f"  Applied: {structural} ({ch_type})")
-                history.snapshot(f'after_change_{change_idx}', result_data,
-                                 {'structural_element': structural, 'type': ch_type, 'applied': True})
-            else:
+                    learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
+                    log(f"  Failed: {structural}", 'error')
+                    # ---- CLOSED FEEDBACK: attempt recovery from learning ----
+                    recovered = _attempt_recover_change(
+                        change, result_data, source, valid_from_dt, source_item_id,
+                        rebuild_ids, log,
+                        learner, change_log[-1],
+                    )
+                    if recovered:
+                        changes_applied += 1
+                        changes_failed -= 1
+                        applied = True
+                        if change_log:
+                            change_log[-1].update({'applied': True, 'error': ''})
+                        resolved_id = change.get('_resolved_item_id') or None
+                        if resolved_id:
+                            learner.record_recovery(structural, 'change_not_applied',
+                                                    're-resolve via learning', success=True,
+                                                    source_context=source_npa_id)
+                        learner.record_mapping(structural, resolved_id, success=True,
+                                               source_context=source_npa_id)
+                        log(f"  RECOVERY succeeded: {structural}", 'result')
+                        history.snapshot(f'after_change_{change_idx}_recovered', result_data,
+                                         {'structural_element': structural, 'type': ch_type,
+                                          'applied': True, 'recovered': True})
+                    else:
+                        if change_log:
+                            change_log[-1]['error_category'] = 'change_not_applied'
+                        learner.record_recovery(structural, 'change_not_applied',
+                                                're-resolve via learning', success=False,
+                                                source_context=source_npa_id)
+            except Exception as e:
                 changes_failed += 1
-                error_msg = 'apply_change returned False'
+                error_msg = str(e)
+                import traceback
+                traceback.print_exc()
                 change_log.append({
                     'structural_element': structural, 'type': ch_type,
                     'applied': False, 'error': error_msg,
                 })
                 learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
-                log(f"  Failed: {structural}", 'error')
-                # ---- CLOSED FEEDBACK: attempt recovery from learning ----
-                recovered = _attempt_recover_change(
-                    change, result_data, source, valid_from_dt, source_item_id,
-                    rebuild_ids, log,
-                    learner, change_log[-1],
-                )
-                if recovered:
-                    changes_applied += 1
-                    changes_failed -= 1
-                    applied = True
-                    if change_log:
-                        change_log[-1].update({'applied': True, 'error': ''})
-                    resolved_id = change.get('_resolved_item_id') or None
-                    if resolved_id:
-                        learner.record_recovery(structural, 'change_not_applied',
-                                                're-resolve via learning', success=True,
-                                                source_context=source_npa_id)
-                    learner.record_mapping(structural, resolved_id, success=True,
-                                           source_context=source_npa_id)
-                    log(f"  RECOVERY succeeded: {structural}", 'result')
-                    history.snapshot(f'after_change_{change_idx}_recovered', result_data,
-                                     {'structural_element': structural, 'type': ch_type,
-                                      'applied': True, 'recovered': True})
+
+        log(f"\nStage 5: Applied {changes_applied} changes. Failed {changes_failed}. Rebuild IDs: {len(rebuild_ids)}")
+
+        # ========== REBUILD ELEMENTS (two-pass, from _stage5_rebuild) ==========
+        raw_ids = rebuild_ids
+        unique_ids = list(dict.fromkeys(raw_ids))
+
+        parent_map = {}
+        def build_parent_map(items, parent_id=None):
+            for item in items:
+                item_id = item.get('item_id')
+                if item_id:
+                    parent_map[item_id] = parent_id
+                build_parent_map(item.get('item_children', []), item_id)
+        build_parent_map(result_data.get('npa_items_revision', []))
+
+        def is_ancestor_in_list(candidate_id, id_list):
+            current_id = candidate_id
+            visited = set()
+            while current_id and current_id not in visited:
+                visited.add(current_id)
+                parent_id = parent_map.get(current_id)
+                if parent_id in id_list:
+                    return True
+                current_id = parent_id
+            return False
+
+        filtered_ids = []
+        unique_set = set(unique_ids)
+        for uid in unique_ids:
+            elem = find_item_by_id(result_data, uid)
+            if elem and (elem.get('_pending_new_redaction_html') or elem.get('_pending_html')) or not is_ancestor_in_list(uid, unique_set - {uid}):
+                filtered_ids.append(uid)
+
+        def get_depth(item_id):
+            return item_id.count('_') if isinstance(item_id, str) else 0
+
+        filtered_ids_sorted = sorted(filtered_ids, key=get_depth, reverse=True)
+        log(f"Rebuild order (first pass): {filtered_ids_sorted}")
+
+        rebuild_modified_by = source_npa_id
+
+        def get_child_html_after_rebuild(child_id):
+            child = find_item_by_id(result_data, child_id)
+            if not child:
+                return None
+            revs = child.get('revisions', [])
+            active_rev = None
+            for rev in reversed(revs):
+                if rev.get('valid_to') is None:
+                    active_rev = rev
+                    break
+            if not active_rev:
+                return None
+            body_parts = []
+            for block in active_rev.get('body', []):
+                if block.get('type') == 'paragraph' or block.get('type') == 'table_fragment':
+                    body_parts.append(block.get('html_text', ''))
+            if not body_parts:
+                return None
+            return '\n'.join(body_parts)
+
+        def augment_pending_html(element_id):
+            element = find_item_by_id(result_data, element_id)
+            if not element:
+                return
+            if element.get('_pending_mod_type') not in ('change', 'new_redaction'):
+                return
+            has_changed_children = False
+            def check_children_for_ids(item):
+                nonlocal has_changed_children
+                for child in item.get('item_children', []):
+                    if child.get('item_id') in raw_ids:
+                        has_changed_children = True
+                        return
+                    check_children_for_ids(child)
+            check_children_for_ids(element)
+
+            if has_changed_children:
+                if element.get('_pending_new_redaction_html'):
+                    from bs4 import BeautifulSoup
+                    base_html = element['_pending_new_redaction_html']
+                    soup = BeautifulSoup(base_html, 'html.parser')
+                    child_ids_to_add = []
+                    def collect_child_ids(item):
+                        for child in item.get('item_children', []):
+                            if child.get('item_id') in raw_ids:
+                                child_ids_to_add.append(child.get('item_id'))
+                            collect_child_ids(child)
+                    collect_child_ids(element)
+                    for child_id in child_ids_to_add:
+                        child_html = get_child_html_after_rebuild(child_id)
+                        if not child_html:
+                            continue
+                        child_soup = BeautifulSoup(child_html, 'html.parser')
+                        soup.append(child_soup)
+                    element['_pending_new_redaction_html'] = str(soup)
+                    log(f"  Augmented HTML for {element_id} with rebuilt child HTML")
                 else:
-                    if change_log:
-                        change_log[-1]['error_category'] = 'change_not_applied'
-                    learner.record_recovery(structural, 'change_not_applied',
-                                            're-resolve via learning', success=False,
-                                            source_context=source_npa_id)
-        except Exception as e:
-            changes_failed += 1
-            error_msg = str(e)
-            import traceback
-            traceback.print_exc()
-            change_log.append({
-                'structural_element': structural, 'type': ch_type,
-                'applied': False, 'error': error_msg,
-            })
-            learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
+                    new_html = get_full_element_html(element, use_original_structure=False)
+                    if new_html:
+                        from npa_processor.processing.html_utils import strip_number_from_element_html
+                        new_html = strip_number_from_element_html(
+                            new_html,
+                            str(element.get('item_number', '')),
+                            element.get('item_type', '')
+                        )
+                        element['_pending_new_redaction_html'] = new_html
+                        log(f"  HTML for {element_id} updated with rebuilt children")
 
-    log(f"\nStage 5: Applied {changes_applied} changes. Failed {changes_failed}. Rebuild IDs: {len(rebuild_ids)}")
+        for element_id in filtered_ids_sorted:
+            element = find_item_by_id(result_data, element_id)
+            if not element:
+                log(f"  Element {element_id} not found for rebuild", 'error')
+                continue
 
-    # ========== REBUILD ELEMENTS (two-pass, from _stage5_rebuild) ==========
-    raw_ids = rebuild_ids
-    unique_ids = list(dict.fromkeys(raw_ids))
+            augment_pending_html(element_id)
 
-    parent_map = {}
-    def build_parent_map(items, parent_id=None):
-        for item in items:
-            item_id = item.get('item_id')
-            if item_id:
-                parent_map[item_id] = parent_id
-            build_parent_map(item.get('item_children', []), item_id)
-    build_parent_map(result_data.get('npa_items_revision', []))
-
-    def is_ancestor_in_list(candidate_id, id_list):
-        current_id = candidate_id
-        visited = set()
-        while current_id and current_id not in visited:
-            visited.add(current_id)
-            parent_id = parent_map.get(current_id)
-            if parent_id in id_list:
-                return True
-            current_id = parent_id
-        return False
-
-    filtered_ids = []
-    unique_set = set(unique_ids)
-    for uid in unique_ids:
-        elem = find_item_by_id(result_data, uid)
-        if elem and (elem.get('_pending_new_redaction_html') or elem.get('_pending_html')) or not is_ancestor_in_list(uid, unique_set - {uid}):
-            filtered_ids.append(uid)
-
-    def get_depth(item_id):
-        return item_id.count('_') if isinstance(item_id, str) else 0
-
-    filtered_ids_sorted = sorted(filtered_ids, key=get_depth, reverse=True)
-    log(f"Rebuild order (first pass): {filtered_ids_sorted}")
-
-    rebuild_modified_by = source_npa_id
-
-    def get_child_html_after_rebuild(child_id):
-        child = find_item_by_id(result_data, child_id)
-        if not child:
-            return None
-        revs = child.get('revisions', [])
-        active_rev = None
-        for rev in reversed(revs):
-            if rev.get('valid_to') is None:
-                active_rev = rev
-                break
-        if not active_rev:
-            return None
-        body_parts = []
-        for block in active_rev.get('body', []):
-            if block.get('type') == 'paragraph' or block.get('type') == 'table_fragment':
-                body_parts.append(block.get('html_text', ''))
-        if not body_parts:
-            return None
-        return '\n'.join(body_parts)
-
-    def augment_pending_html(element_id):
-        element = find_item_by_id(result_data, element_id)
-        if not element:
-            return
-        if element.get('_pending_mod_type') not in ('change', 'new_redaction'):
-            return
-        has_changed_children = False
-        def check_children_for_ids(item):
-            nonlocal has_changed_children
-            for child in item.get('item_children', []):
-                if child.get('item_id') in raw_ids:
-                    has_changed_children = True
-                    return
-                check_children_for_ids(child)
-        check_children_for_ids(element)
-
-        if has_changed_children:
-            if element.get('_pending_new_redaction_html'):
-                from bs4 import BeautifulSoup
-                base_html = element['_pending_new_redaction_html']
-                soup = BeautifulSoup(base_html, 'html.parser')
-                child_ids_to_add = []
-                def collect_child_ids(item):
-                    for child in item.get('item_children', []):
-                        if child.get('item_id') in raw_ids:
-                            child_ids_to_add.append(child.get('item_id'))
-                        collect_child_ids(child)
-                collect_child_ids(element)
-                for child_id in child_ids_to_add:
-                    child_html = get_child_html_after_rebuild(child_id)
-                    if not child_html:
-                        continue
-                    child_soup = BeautifulSoup(child_html, 'html.parser')
-                    soup.append(child_soup)
-                element['_pending_new_redaction_html'] = str(soup)
-                log(f"  Augmented HTML for {element_id} with rebuilt child HTML")
-            else:
-                new_html = get_full_element_html(element, use_original_structure=False)
-                if new_html:
-                    from npa_processor.processing.html_utils import strip_number_from_element_html
-                    new_html = strip_number_from_element_html(
-                        new_html,
-                        str(element.get('item_number', '')),
-                        element.get('item_type', '')
-                    )
-                    element['_pending_new_redaction_html'] = new_html
-                    log(f"  HTML for {element_id} updated with rebuilt children")
-
-    for element_id in filtered_ids_sorted:
-        element = find_item_by_id(result_data, element_id)
-        if not element:
-            log(f"  Element {element_id} not found for rebuild", 'error')
-            continue
-
-        augment_pending_html(element_id)
-
-        ok = rebuild_element_with_history(
-            result_data, element_id, valid_from_dt,
-            rebuild_modified_by, 'law',
-            log_callback=log
-        )
+            ok = rebuild_element_with_history(
+                result_data, element_id, valid_from_dt,
+                rebuild_modified_by, doc_type,
+                log_callback=log
+            )
         if ok:
             log(f"  Rebuilt: {element_id}")
         else:
@@ -917,13 +929,15 @@ def main(args=None):
 
             ok = rebuild_element_with_history(
                 result_data, element_id, valid_from_dt,
-                rebuild_modified_by, 'law',
+                rebuild_modified_by, doc_type,
                 log_callback=log
             )
             if ok:
                 log(f"  Rebuilt (2nd pass): {element_id}")
             else:
                 log(f"  Failed to rebuild (2nd pass): {element_id}", 'error')
+    else:
+        log("Stage 5: пропущен (--stage)")
 
     # ========== ADD revision_info ==========
     rev_info = {

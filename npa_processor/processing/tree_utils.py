@@ -183,10 +183,10 @@ def _find_element_by_revision_path(root_element, revision_number):
     current = root_element
     for part in parts:
         found_child = None
-        part_clean = clean_number(part) if 'clean_number' in globals() else part.strip(') .')
+        part_clean = clean_number(part)
         for child in current.get('item_children', []):
             child_num = str(child.get('item_number', ''))
-            child_clean = clean_number(child_num) if 'clean_number' in globals() else child_num.strip(') .')
+            child_clean = clean_number(child_num)
             if child_clean == part_clean:
                 found_child = child
                 break

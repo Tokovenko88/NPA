@@ -9,9 +9,12 @@ from npa_processor.processing.text_utils import strip_thinking_tags
 _stage4_usage_counters = {}
 
 
-def get_stage4_agent_answer(base_key, log_callback=None):
-    counter = _stage4_usage_counters.get(base_key, 0)
-    _stage4_usage_counters[base_key] = counter + 1
+def get_stage4_agent_answer(base_key, log_callback=None, index=None):
+    if index is None:
+        counter = _stage4_usage_counters.get(base_key, 0)
+        _stage4_usage_counters[base_key] = counter + 1
+    else:
+        counter = index
 
     path = os.path.join(ANSWERS_DIR, f"prompt_4_answer_{base_key}.json")
     if not os.path.exists(path):
