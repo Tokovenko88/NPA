@@ -1,21 +1,21 @@
-"""Pipeline orchestration primitives.
+"""Public pipeline planning API.
 
-The package contains deterministic planning and runtime coordination helpers.
-CLI entry points remain in ``scripts/`` for compatibility.
+CLI entry points remain in ``scripts/`` for compatibility. Planning itself
+lives in the domain layer so there is a single canonical implementation.
 """
 
-from npa_processor.pipeline.rebuild import (
+from npa_processor.domain.rebuild_plan import (
     RebuildPlan,
+    ancestor_ids,
+    build_parent_map,
     build_rebuild_plan,
-    collect_pending_ids,
-    execute_rebuild_plan,
-    merge_rebuild_ids,
+    rebuild_order,
 )
 
 __all__ = [
     "RebuildPlan",
+    "ancestor_ids",
+    "build_parent_map",
     "build_rebuild_plan",
-    "collect_pending_ids",
-    "execute_rebuild_plan",
-    "merge_rebuild_ids",
+    "rebuild_order",
 ]
