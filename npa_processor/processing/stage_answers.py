@@ -9,6 +9,11 @@ from npa_processor.processing.text_utils import strip_thinking_tags
 _stage4_usage_counters = {}
 
 
+def reset_stage4_counters():
+    """Сбросить счётчики использования ответов stage 4. Вызывать в начале каждого pipeline-run."""
+    global _stage4_usage_counters
+    _stage4_usage_counters = {}
+
 def get_stage4_agent_answer(base_key, log_callback=None, index=None):
     if index is None:
         counter = _stage4_usage_counters.get(base_key, 0)
@@ -49,8 +54,4 @@ def get_stage4_agent_answer(base_key, log_callback=None, index=None):
         return None
 
     cleaned = strip_thinking_tags(answer)
-    if cleaned.startswith("```json") and cleaned.endswith("```"):
-        cleaned = cleaned[7:-3].strip()
-    elif cleaned.startswith("```") and cleaned.endswith("```"):
-        cleaned = cleaned[3:-3].strip()
     return cleaned

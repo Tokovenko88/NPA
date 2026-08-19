@@ -47,11 +47,6 @@ def extract_html_from_json_response(text, log_callback=None):
     if not text:
         return text
     text = strip_thinking_tags(text)
-    text = text.strip()
-    if text.startswith('```json') and text.endswith('```'):
-        text = text[7:-3].strip()
-    elif text.startswith('```') and text.endswith('```'):
-        text = text[3:-3].strip()
     try:
         parsed = json.loads(text)
         if isinstance(parsed, dict) and 'html' in parsed:

@@ -97,6 +97,6 @@ The agent can:
 
 ## Development notes
 
-- Dead code cleanup and unification of helpers (`sup_digits_to_unicode`, `log`, `close_revision_date`, tree helpers).
+- Dead code cleaned, helpers unified (`sup_digits_to_unicode`, `log`, `close_revision_date`, tree helpers), stage4 counters reset per run (2026).
 - Bootstrap is centralized in `npa_processor/_bootstrap.py`.
 - Logging helper: `npa_processor.logging_utils.log`.

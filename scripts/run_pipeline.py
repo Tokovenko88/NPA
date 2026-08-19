@@ -18,7 +18,11 @@ from bs4 import BeautifulSoup
 from npa_processor._bootstrap import _bootstrap_project_root
 from npa_processor.logging_utils import log
 
+from npa_processor.processing.stage_answers import reset_stage4_counters  # noqa: E402
+
 _bootstrap_project_root()
+
+reset_stage4_counters()
 
 from npa_processor.learning import (  # noqa: E402
     DocumentHistory,
@@ -43,12 +47,11 @@ from npa_processor.processing.html_utils import (  # noqa: E402
 )
 from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
 from npa_processor.processing.tree_utils import _find_target_element  # noqa: E402
+from npa_processor.processing.tree_utils import find_item_by_id  # noqa: E402
 from npa_processor.processing.element_ops import (  # noqa: E402
     _find_existing_element_flexible,
-    _make_new_revision,
     clean_number_for_filename,
     close_revision_date,
-    find_item_by_id,
     get_date_for_filename,
     rebuild_element_with_history,
 )
@@ -118,7 +121,7 @@ def generate_result_filename(result_data, source_data):
     return f"{orig_clean_num}_{orig_date}_izm_{change_clean_num}_{change_date}.json"
 
 
-def _load_stage_answers(name_prefix, log_callback=None):
+def _load_stage_answers(name_prefix, log_callback=None, strict=False, errors=None):
     """Загрузить все ответы этапа, соответствующие префикексу (prompt_N_answer[_article_M])."""
     results = []
     candidates = []
@@ -128,6 +131,13 @@ def _load_stage_answers(name_prefix, log_callback=None):
     for path in candidates:
         try:
             data = load_json(path)
+            if data is None or (isinstance(data, list) and not data):
+                if strict:
+                    msg = f"Stage answer {path} is empty or corrupted (strict mode)"
+                    if errors is not None:
+                        errors.append(msg)
+                    raise ValueError(msg)
+                continue
             if isinstance(data, list):
                 results.extend(data)
         except Exception as e:
@@ -569,7 +579,7 @@ def main(args=None):
     if not parsed.stage or parsed.stage >= 1:
         # ========== STAGE 1: Revocation Analysis ==========
         log("Stage 1: Revocation analysis.")
-        stage1_changes = _load_stage_answers('prompt_1_answer', log)
+        stage1_changes = _load_stage_answers('prompt_1_answer', log, strict=parsed.strict, errors=errors)
         for change in stage1_changes:
             try:
                 ok = apply_stage1_revocation(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
@@ -595,7 +605,7 @@ def main(args=None):
     if not parsed.stage or parsed.stage >= 2:
         # ========== STAGE 2: Dates Analysis ==========
         log("Stage 2: Dates and retroactive clauses analysis.")
-        stage2_changes = _load_stage_answers('prompt_2_answer', log)
+        stage2_changes = _load_stage_answers('prompt_2_answer', log, strict=parsed.strict, errors=errors)
         for change in stage2_changes:
             try:
                 ok = apply_stage2_date_change(result_data, change, valid_from_dt, log, source_npa_id, strict=parsed.strict)
@@ -615,7 +625,7 @@ def main(args=None):
 
     if not parsed.stage or parsed.stage >= 3:
         # ========== STAGE 3: Changes Extraction ==========
-        all_changes = _load_stage_answers('prompt_3_answer', log)
+        all_changes = _load_stage_answers('prompt_3_answer', log, strict=parsed.strict, errors=errors)
     else:
         all_changes = []
     log(f"Stage 3: Loaded {len(all_changes)} changes from prompt answers.")
@@ -1371,20 +1381,20 @@ def main(args=None):
     save_text(report_path, report)
 
     # Print concise chat summary
-    print("\n" + "="*60)
-    print("PIPELINE COMPLETED")
-    print("="*60)
-    print(f"Status: {status}")
-    print(f"Source: {source.get('npa_number', '')} ({source.get('date_pub', '')})")
-    print(f"Target: {target.get('npa_number', '')} ({target.get('date_pub', '')})")
-    print(f"Changes applied: {changes_applied}")
-    print(f"Changes failed: {changes_failed}")
-    print(f"Output: {result_path}")
-    print(f"Report: {report_path}")
-    print(f"Verification: {'PASSED' if vdict['passed'] else 'FAILED'}")
+    log("\n" + "="*60, 'info')
+    log("PIPELINE COMPLETED", 'info')
+    log("="*60, 'info')
+    log(f"Status: {status}", 'info')
+    log(f"Source: {source.get('npa_number', '')} ({source.get('date_pub', '')})", 'info')
+    log(f"Target: {target.get('npa_number', '')} ({target.get('date_pub', '')})", 'info')
+    log(f"Changes applied: {changes_applied}", 'info')
+    log(f"Changes failed: {changes_failed}", 'info')
+    log(f"Output: {result_path}", 'info')
+    log(f"Report: {report_path}", 'info')
+    log(f"Verification: {'PASSED' if vdict['passed'] else 'FAILED'}", 'info')
     if errors:
-        print(f"Warnings/Errors: {len(errors)}")
-    print("="*60)
+        log(f"Warnings/Errors: {len(errors)}", 'info')
+    log("="*60, 'info')
 
     report_json_path = os.path.join(result_dir, filename.replace('.json', '_report.json'))
     report_data = {

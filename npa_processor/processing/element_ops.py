@@ -1,9 +1,8 @@
 """Операции над элементами дерева НПА (поиск, добавление, rebuild)."""
 
 import copy
-import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from bs4 import BeautifulSoup
 
@@ -30,7 +29,6 @@ from npa_processor.processing.text_utils import (
     safe_re_sub,
 )
 from npa_processor.processing.tree_utils import (
-    _find_element_by_revision_path,
     clean_number,
     find_child_by_type_and_number,
     find_element_in_chapters_or_sections,
@@ -59,26 +57,6 @@ def collect_item_ids(item, ids_set):
         ids_set.add(item['item_id'])
     for child in item.get('item_children', []):
         collect_item_ids(child, ids_set)
-
-
-def extract_json_from_text(text):
-    obj_match = re.search(r'(\{.*\})', text, re.DOTALL)
-    if obj_match:
-        candidate = obj_match.group(1)
-        try:
-            json.loads(candidate)
-            return candidate
-        except json.JSONDecodeError:
-            pass
-    arr_match = re.search(r'(\[.*\])', text, re.DOTALL)
-    if arr_match:
-        candidate = arr_match.group(1)
-        try:
-            json.loads(candidate)
-            return candidate
-        except json.JSONDecodeError:
-            pass
-    return None
 
 
 def _fetch_source_html_for_change(change, change_data, target_element, log_callback):
@@ -632,104 +610,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                 f"(mod_type={mod_type})", 'result'
             )
 
-def expand_range_in_new_field(change, log_callback=None, change_data=None, target_element=None):
-    new_val = change.get('new', '')
-    if not new_val:
-        return [change]
-    num_range_pattern = re.compile(r'([а-яё]+)\s+(\d+(?:\.\d+)?)\s*[–—]\s*(\d+(?:\.\d+)?)', re.IGNORECASE)
-    letter_range_pattern = re.compile(r'([а-яё]+)\s+«?([а-яё])»?\s*[–—]\s*«?([а-яё])»?', re.IGNORECASE)
-    match = num_range_pattern.search(new_val)
-    if match:
-        ru_type = match.group(1).lower()
-        ru_type = normalize_ru_type(ru_type)
-        start_num_str = match.group(2)
-        end_num_str = match.group(3)
-        def expand_numbers(start, end):
-            if '.' in start and '.' in end:
-                start_parts = start.split('.')
-                end_parts = end.split('.')
-                if len(start_parts) == 2 and len(end_parts) == 2:
-                    major_start = int(start_parts[0])
-                    major_end = int(end_parts[0])
-                    minor_start = int(start_parts[1])
-                    minor_end = int(end_parts[1])
-                    if major_start == major_end:
-                        return [f"{major_start}.{i}" for i in range(minor_start, minor_end + 1)]
-                    else:
-                        return [str(n) for n in range(int(start.split('.')[0]), int(end.split('.')[0]) + 1)]
-                else:
-                    return [str(n) for n in range(int(start.split('.')[0]), int(end.split('.')[0]) + 1)]
-            else:
-                return [str(n) for n in range(int(start), int(end) + 1)]
-        numbers = expand_numbers(start_num_str, end_num_str)
-        if len(numbers) <= 1:
-            return [change]
-        source_html = None
-        if change_data is not None and target_element is not None:
-            source_html = _fetch_source_html_for_change(change, change_data, target_element, log_callback)
-        if not source_html:
-            source_html = change.get('description', '')
-            if log_callback:
-                log_callback("  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
-        source_html = safe_re_sub(r'[«»]', '', source_html)
-        html_parts = split_html_by_leading_number(source_html, numbers)
-        result = []
-        for num in numbers:
-            if num not in html_parts:
-                if log_callback:
-                    log_callback(f"  Часть {num} не найдена в исходном HTML, пропущено", 'warning')
-                continue
-            fragment = html_parts[num]
-            fragment = clean_description_html(fragment)
-            fragment = remove_leading_number_from_html(fragment, num)
-            new_change = copy.deepcopy(change)
-            if ru_type in ('пункт', 'подпункт'):
-                new_change['new'] = f"{ru_type} {num})"
-            else:
-                new_change['new'] = f"{ru_type} {num}"
-            new_change['description'] = fragment
-            result.append(new_change)
-        return result
-    match = letter_range_pattern.search(new_val)
-    if match:
-        ru_type = match.group(1).lower()
-        ru_type = normalize_ru_type(ru_type)
-        start_letter = match.group(2).lower()
-        end_letter = match.group(3).lower()
-        alphabet = 'абвгдежзийклмнопрстуфхцчшщъыьэюя'
-        if start_letter not in alphabet or end_letter not in alphabet:
-            return [change]
-        start_idx = alphabet.index(start_letter)
-        end_idx = alphabet.index(end_letter)
-        if start_idx > end_idx:
-            start_idx, end_idx = end_idx, start_idx
-        letters = [alphabet[i] for i in range(start_idx, end_idx + 1)]
-        source_html = None
-        if change_data is not None and target_element is not None:
-            source_html = _fetch_source_html_for_change(change, change_data, target_element, log_callback)
-        if not source_html:
-            source_html = change.get('description', '')
-            if log_callback:
-                log_callback("  Не удалось получить исходный HTML для диапазона, используем description (возможны ошибки)", 'warning')
-        source_html = safe_re_sub(r'[«»]', '', source_html)
-        letter_numbers = [f"{l})" for l in letters]
-        html_parts = split_html_by_leading_number(source_html, letter_numbers)
-        result = []
-        for letter in letters:
-            num = f"{letter})"
-            if num not in html_parts:
-                if log_callback:
-                    log_callback(f"  Часть {num} не найдена в исходном HTML, пропущено", 'warning')
-                continue
-            fragment = html_parts[num]
-            fragment = clean_description_html(fragment)
-            fragment = remove_leading_number_from_html(fragment, letter)
-            new_change = copy.deepcopy(change)
-            new_change['new'] = f"{ru_type} {num}"
-            new_change['description'] = fragment
-            result.append(new_change)
-        return result
-    return [change]
 
 def ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context_parent=None):
     return _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context_parent, ambiguous_callback=None)
@@ -1012,32 +892,20 @@ def _add_new_element(parent, child_type, child_number, description, modified_by_
     cleaned_html = clean_and_unwrap_html(cleaned_html, is_table_child=is_table_child)
     existing_ids = set()
     collect_item_ids(data, existing_ids)
-    [len(existing_ids) + 1]
-    document_id = data.get('npa_id', 'unknown')
-    clean_num = str(clean_number(str(normalized_number))).replace('.', '_')
-    clean_parent_id = parent_id.rstrip('_') if parent_id else ''
-    if clean_parent_id:
-        base_id = f"{clean_parent_id}_{child_type}_{clean_num}"
-    else:
-        base_id = f"{document_id}_{child_type}_{clean_num}" if document_id else f"toc_{child_type}_{clean_num}"
-    base_id = safe_re_sub(r'_+', '_', base_id).rstrip('_')
-    candidate_id = base_id
-    suffix = 2
-    while candidate_id in existing_ids:
-        candidate_id = f"{base_id}_{suffix}"
-        suffix += 1
-    existing_ids.add(candidate_id)
-    element_skeleton = {
-        'item_id': candidate_id,
-        'item_type': child_type,
-        'item_number': normalized_number,
-        'item_level': child_level,
-        'item_children': []
-    }
-    if child_type in ('article', 'chapter', 'section', 'appendix'):
-        element_skeleton['head_revisions'] = []
-    if child_type == 'appendix':
-        element_skeleton['item_prefix_revisions'] = []
+    id_counter = [len(existing_ids) + 1]
+    element_skeleton = create_element_skeleton(
+        item_type=child_type,
+        item_number=normalized_number,
+        html_text=cleaned_html,
+        parent_id=parent_id,
+        existing_ids=existing_ids,
+        id_counter=id_counter,
+        item_level=child_level,
+        valid_from=valid_from.strftime('%d.%m.%Y') if valid_from else None,
+        modified_by_id=modified_by_id,
+        mod_type='add',
+        doc_id=data.get('npa_id'),
+    )
     element_skeleton['_pending_new_redaction_html'] = cleaned_html
     element_skeleton['_pending_mod_type'] = 'add'
     element_skeleton['_pending_modified_by_id'] = modified_by_id
@@ -1376,25 +1244,6 @@ def _make_new_revision(new_body, mod_type=None, modified_by_id=None, highlights=
         rev['highlights'] = highlights
     return rev
 
-def create_new_parent_revision(parent, old_rev, new_body, valid_from, modified_by_id_str, mod_type, log_callback, highlights=None):
-    revisions = parent.get('revisions', [])
-    active_idx = -1
-    for i, rev in enumerate(revisions):
-        if rev.get('valid_to') in (None, ''):
-            active_idx = i
-            break
-    if active_idx == -1 and revisions:
-        active_idx = len(revisions) - 1
-    if active_idx < 0:
-        if log_callback:
-            log_callback("  Нет активной ревизии у родителя", 'error')
-        return False
-    valid_to_str = close_revision_date(valid_from)
-    _close_revision(revisions[active_idx], valid_to_str)
-    new_rev = _make_new_revision(new_body, mod_type=mod_type, modified_by_id=modified_by_id_str, highlights=highlights)
-    revisions.append(new_rev)
-    parent['revisions'] = revisions
-    return new_rev
 
 def build_new_body_preserving_child_refs(old_rev, answer_html):
     old_body = sorted(old_rev.get('body', []), key=lambda b: b.get('order', 0))

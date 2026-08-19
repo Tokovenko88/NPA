@@ -1,7 +1,7 @@
 """Текстовые утилиты для обработки НПА."""
 
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 
@@ -14,6 +14,10 @@ def strip_thinking_tags(text):
     if re.search(r'</think(?:ing)?>', text, re.IGNORECASE):
         text = re.sub(r'^.*?</think(?:ing)?>\s*', '', text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'<think(?:ing)?>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
+    if text.startswith("```json") and text.endswith("```"):
+        text = text[7:-3].strip()
+    elif text.startswith("```") and text.endswith("```"):
+        text = text[3:-3].strip()
     return text.strip()
 
 

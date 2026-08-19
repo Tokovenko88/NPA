@@ -50,6 +50,7 @@ from npa_processor.paths import (  # noqa: E402
     load_json,
     save_json,
 )
+from npa_processor.processing.stage_answers import reset_stage4_counters  # noqa: E402
 from scripts.run_pipeline import main as run_pipeline_main  # noqa: E402
 
 BASE_DIR = PROJECT_ROOT
@@ -154,6 +155,7 @@ def setup_working_dirs(target_path, source_path, answers_subdir=None):
 
 def run_single_pipeline(result_dir=None):
     """Run run_pipeline.main in-process and return result path."""
+    reset_stage4_counters()
     args = []
     if result_dir:
         args.extend(['--result-dir', result_dir, '--keep-previous'])

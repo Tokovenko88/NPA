@@ -5,26 +5,6 @@ import re
 from npa_processor.processing.text_utils import clean_number, safe_re_sub
 from npa_processor.processing.tree_utils import find_item_by_id, parse_number_word, parse_revision_number_to_path
 
-
-def find_element_and_parent(data, target_id):
-    def recurse(items, parent=None):
-        for item in items:
-            if item.get('item_id') == target_id:
-                return item, parent
-            if 'item_children' in item:
-                found, found_parent = recurse(item['item_children'], item)
-                if found:
-                    return found, found_parent
-        return None, None
-    return recurse(data.get('npa_items_revision', []))
-
-def find_item_id_by_element_string(data, structural, log_callback=None, ambiguous_callback=None):
-    from npa_processor.processing.element_ops import _find_existing_element_flexible
-    elem = _find_existing_element_flexible(data, structural, log_callback, ambiguous_callback)
-    if elem:
-        return elem.get('item_id')
-    return None
-
 def _find_element_by_type_and_number(data, item_type, item_number, start_items=None, ambiguous_callback=None):
     if start_items is None:
         start_items = data.get('npa_items_revision', [])

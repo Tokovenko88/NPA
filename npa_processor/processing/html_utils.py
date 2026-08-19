@@ -242,57 +242,6 @@ def extract_leading_number(html):
     return None
 
 
-def extract_html_for_added_element(source_html, range_str, child_number, log_callback=None):
-    """Извлекает HTML для добавляемого элемента с защитой от неверного description.
-
-    Проблема: модель на этапе 3 может указать в description неверные абсолютные
-    номера абзацев, из-за чего по индексам извлекается фрагмент, начинающийся
-    НЕ с номера добавляемого элемента (например, для «пункт 7» попадает и «пункт 6»).
-    Это приводит к ложному диалогу «неоднозначности» на этапе перестройки.
-
-    Функция проверяет, что первый абзац извлечённого HTML начинается с номера
-    добавляемого элемента (child_number), и если нет — ищет корректный фрагмент
-    по ведущему маркеру в исходном HTML.
-    """
-    if not source_html:
-        return ''
-    extracted = extract_paragraphs_by_indices(source_html, range_str, log_callback)
-    if not extracted:
-        return ''
-    expected_num = str(child_number).strip().rstrip('.)')
-    if not expected_num:
-        return extracted
-    first_num = extract_leading_number(extracted)
-    if first_num is not None and first_num == expected_num:
-        return extracted
-    # Ведущий маркер не совпадает с номером добавляемого элемента.
-    # Пытаемся найти фрагмент, начинающийся с ожидаемого маркера.
-    if log_callback:
-        log_callback(
-            f"  add: первый абзац извлечённого HTML начинается с '{first_num}', "
-            f"ожидался '{expected_num}'. Ищем фрагмент по маркеру...", 'warning'
-        )
-    clean_source = safe_re_sub(r'[«»]', '', source_html)
-    markers = [expected_num + ')', expected_num + '.', expected_num]
-    parts = split_html_by_leading_number(clean_source, markers)
-    found_fragment = None
-    for key, val in parts.items():
-        if key.rstrip('.)') == expected_num:
-            found_fragment = val
-            break
-    if found_fragment:
-        if log_callback:
-            log_callback(f"  add: найден фрагмент по маркеру '{expected_num}' (длина {len(found_fragment)})", 'info')
-        return clean_description_html(found_fragment)
-    # Не удалось найти по маркеру — возвращаем извлечённое по description.
-    if log_callback:
-        log_callback(
-            f"  add: не удалось найти фрагмент по маркеру '{expected_num}', "
-            f"используем извлечённый по description", 'warning'
-        )
-    return extracted
-
-
 def remove_leading_number_from_html(html, item_number):
     if not html or not item_number:
         return html
@@ -369,28 +318,6 @@ def split_html_by_leading_number(html_str, numbers):
             result[marker] = fragment
     return result
 
-def build_search_pattern(original_data):
-    doc_type = original_data.get('doc_type', original_data.get('npa_type', 'law'))
-    npa_number = original_data.get('npa_number', '')
-    clean_number = safe_re_sub(r'[^0-9]', '', npa_number)
-    if doc_type == 'law':
-        return rf'(?i)(закон[а-я]*)?\s*№\s*{clean_number}', clean_number
-    date_str = original_data.get('date_passed', '') or original_data.get('date_reg', '')
-    if not date_str:
-        return rf'(?i)постановление[а-я]*\s+Законодательного\ Собрания\ города\ Севастополя\s+№\s*{clean_number}', clean_number
-    try:
-        day, month, year = date_str.split('.')
-        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-        month_name = months[int(month) - 1]
-        date_pattern = rf'от\s+{int(day)}\s+{month_name}\s+{year}\s+года'
-    except (ValueError, IndexError):
-        date_pattern = ''
-    if date_pattern:
-        pattern = rf'(?i)(постановление[а-я]*)\s+Законодательного\ Собрания\ города\ Севастополя\s+{date_pattern}\s+№\s*{clean_number}'
-    else:
-        pattern = rf'(?i)(постановление[а-я]*)\s+Законодательного\ Собрания\ города\ Севастополя\s+№\s*{clean_number}'
-    return pattern, clean_number
 
 def get_clean_text_from_block(block):
     raw = block.get('html_text', block.get('text', ''))
@@ -671,9 +598,6 @@ def get_item_html_recursive(item, all_items_map, include_header=True):
             if child_item:
                 html_out += get_item_html_recursive(child_item, all_items_map)
     return html_out
-
-def extract_html_from_element(element, include_number=True):
-    return get_item_html_recursive(element, {})
 
 def get_full_element_html(element, use_original_structure=False, include_number=True, include_header=True):
     if not element:

@@ -153,16 +153,6 @@ class LearningEngine:
                 rec['last_error_message'] = error_message
         save_json(self.MAPPINGS_FILE, self._mappings)
 
-    def record_mapping_with_error(self, structural_element, item_id, success,
-                                  error_category, error_message, source_context=''):
-        """Р—Р°РїРёСЃР°С‚СЊ СЂРµР·СѓР»СЊС‚Р°С‚ РјР°РїРїРёРЅРіР° РІРјРµСЃС‚Рµ СЃ РєР°С‚РµРіРѕСЂРёРµР№ РѕС€РёР±РєРё."""
-        self.record_mapping(structural_element, item_id, success, source_context)
-        rec = self._mappings.get(structural_element)
-        if rec is not None:
-            cats = rec.setdefault('error_categories', {})
-            cats[error_category] = cats.get(error_category, 0) + 1
-            rec['last_error_message'] = error_message
-            save_json(self.MAPPINGS_FILE, self._mappings)
 
     def get_reliable_mapping(self, structural_element):
         """Вернуть проверенный item_id или None.
@@ -190,52 +180,7 @@ class LearningEngine:
                 result[se] = mapped
         return result
 
-    def all_mappings(self):
-        return copy.deepcopy(self._mappings)
 
-    # ------------------------------------------------------------------
-    # 3. Обратная связь по промптам
-    # ------------------------------------------------------------------
-        """Топ-N самых эффективных промптов для этапа."""
-        candidates = []
-        for key, rec in self._prompt_feedback.items():
-            if rec.get('stage') == stage:
-                total = rec.get('success_count', 0) + rec.get('fail_count', 0)
-                if total == 0:
-                    continue
-                score = rec.get('success_count', 0) / total
-                candidates.append((score, key, rec))
-        candidates.sort(key=lambda x: x[0], reverse=True)
-        return candidates[:top_n]
-
-    def get_prompt_suggestion(self, stage):
-        """Р’РµСЂРЅСѓС‚СЊ СЂРµРєРѕРјРµРЅРґР°С†РёСЋ РїРѕ РЅР°СЃС‚СЂРѕР№РєРµ РїСЂРѕРјРїС‚Р° РґР»СЏ СЌС‚Р°РїР°.
-
-        Р•СЃР»Рё РєРѕСЌС„С„РёС†РёРµРЅС‚ СѓСЃРїРµС…Р° < 0.5, РїСЂРµРґР»Р°РіР°РµС‚ СѓРІРµР»РёС‡РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РїСЂРѕРјРїС‚Р°
-        Рё РґРѕР±Р°РІРёС‚СЊ РїСЂРёРјРµСЂС‹ РІ prompt.
-        """
-        candidates = self.get_best_prompts(stage, top_n=1)
-        if not candidates:
-            return None
-        score, key, rec = candidates[0]
-        total = rec.get('success_count', 0) + rec.get('fail_count', 0)
-        if score < 0.5:
-            return {
-                'stage': stage,
-                'success_rate': score,
-                'total': total,
-                'suggestion': (
-                    "РљРѕСЌС„С„РёС†РёРµРЅС‚ СѓСЃРїРµС…Р° РїСЂРѕРјРїС‚Р° < 50%. Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ: "
-                    "СѓРІРµР»РёС‡РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё РїСЂРѕРјРїС‚Р° РґРѕ 0.3-0.7, РґРѕР±Р°РІРёС‚СЊ РєРѕРЅС‚СЂР°РІР°СЂРёР°РЅС‚РЅС‹Рµ "
-                    "РїСЂРёРјРµСЂС‹ РІ prompt, РґРѕР±Р°РІРёС‚СЊ РёРЅСЃС‚СЂСѓРєС†РёСЋ Рѕ СЃС‚СЂРѕРіРѕРј JSON-форматРµ."
-                ),
-            }
-        return {
-            'stage': stage,
-            'success_rate': score,
-            'total': total,
-            'suggestion': 'РџСЂРѕРјРїС‚ СЂР°Р±РѕС‚Р°РµС‚ СЃС‚Р°Р±РёР»СЊРЅРѕ, изменения РЅРµ С‚СЂРµР±СѓСЋС‚СЃСЏ.',
-        }
 
     # ------------------------------------------------------------------
     # 4. Р РµР·СѓР»СЊС‚Р°С‚С‹ РІРµСЂРёС„РёРєР°С†РёРё Рё РёСЃС…РѕРґС‹ РёР·РјРµРЅРµРЅРёР№
@@ -549,39 +494,7 @@ class LearningEngine:
         self._bug_fixes.append(entry)
         save_json(self.BUG_FIXES_FILE, self._bug_fixes)
 
-    def get_bug_fixes(self, limit=20):
-        """Вернуть последние исправления багов."""
-        result = list(self._bug_fixes)
-        result.sort(key=lambda e: e.get('timestamp', ''), reverse=True)
-        return result[:limit]
 
-    def get_bug_fixes_stats(self):
-        """Вернуть агрегированную статистику по исправлениям."""
-        total = len(self._bug_fixes)
-        successful = sum(1 for b in self._bug_fixes if b.get('success'))
-        categories = defaultdict(int)
-        for b in self._bug_fixes:
-            desc = b.get('bug_description', '')
-            if 'valid_from' in desc.lower():
-                categories['missing_valid_from'] += 1
-            elif 'РґСѓР±Р»РёР°С‚' in desc.lower() or 'РґСѓР±Р»РёРє' in desc.lower():
-                categories['duplicate_item_id'] += 1
-            elif 'child_ref' in desc.lower():
-                categories['broken_child_ref'] += 1
-            elif 'item_level' in desc.lower():
-                categories['invalid_item_level'] += 1
-            elif 'РІР»РѕР¶РµРЅ' in desc.lower() or 'inline' in desc.lower():
-                categories['inlined_children'] += 1
-            else:
-                categories['other'] += 1
-        return {
-            'total_bug_fixes': total,
-            'successful_bug_fixes': successful,
-            'failed_bug_fixes': total - successful,
-            'by_category': dict(categories),
-        }
-
-    # ------------------------------------------------------------------
     # 10. Seed training examples (preloaded correct/incorrect patterns)
     # ------------------------------------------------------------------
     def get_seed_examples(self, category=None, subcategory=None, limit=20):
