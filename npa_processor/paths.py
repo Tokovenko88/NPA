@@ -1,6 +1,5 @@
 """Централизованные пути и утилиты для проекта."""
 
-import json
 import os
 
 from npa_processor._bootstrap import _bootstrap_project_root
