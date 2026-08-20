@@ -982,7 +982,6 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
     fragment_element_id = old_item.get('item_id')
     root_number = old_item.get('item_number')
     root_type = old_item.get('item_type')
-    root_items = data.get('npa_items_revision', [])
     parent = find_parent(data, element_id)
     is_table_child = False
     if parent and parent.get('item_type') == 'structured_table' and old_item.get('item_type') != 'appendix':
@@ -1069,25 +1068,6 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
         root_type=root_type,
         is_table_child=is_table_child
     )
-    if not hasattr(temp_gen, 'generate_toc'):
-        _log(f"  NpaToJsonGenerator.generate_toc() не реализован, создаём fallback-ревизию для {element_id}", 'warning')
-        if pending_html:
-            old_item.setdefault('revisions', [])
-            change_date_str = effective_valid_from
-            for rev in reversed(old_item['revisions']):
-                if rev.get('valid_to') is None:
-                    rev['valid_to'] = close_revision_date(change_date_str)
-                    rev['not_valid'] = effective_mod_by
-                    break
-            new_rev = {
-                'body': [{'type': 'paragraph', 'html_text': pending_html, 'order': 1}],
-                'mod_type': effective_mod_type,
-                'modified_by_id': effective_mod_by,
-                'valid_from': change_date_str,
-            }
-            old_item['revisions'].append(new_rev)
-            _log(f"  Fallback-ревизия создана для {element_id}", 'result')
-        return True
     new_toc_items, ambiguous = temp_gen.generate_toc()
     if not new_toc_items:
         _log(f"Структура элемента {element_id} после пересборки пуста.", 'warning')

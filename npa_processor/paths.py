@@ -3,7 +3,7 @@
 import os
 
 from npa_processor._bootstrap import _bootstrap_project_root
-from npa_processor.processing.json_utils import load_json, save_json
+from npa_processor.processing.json_utils import load_json, save_json  # noqa: F401 — re-exported for compatibility
 
 _bootstrap_project_root()
 
