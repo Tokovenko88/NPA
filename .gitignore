@@ -30,7 +30,6 @@ Thumbs.db
 # Working files
 work/answers/*
 work/chain_results/*
-work/results/*
 !work/.gitkeep
 !work/source/.gitkeep
 !work/answers/.gitkeep
@@ -48,5 +47,3 @@ npa_processor/learning/history/
 # Temporary working files
 tmp/
 
-# Reports
-scripts/report.md
