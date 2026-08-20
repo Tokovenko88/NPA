@@ -39,3 +39,6 @@ known-first-party = ["npa_processor", "scripts"]
 [tool.black]
 line-length = 120
 target-version = ["py310"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -1,6 +1,7 @@
 """Операции над элементами дерева НПА (поиск, добавление, rebuild)."""
 
 import copy
+import json
 import re
 from datetime import datetime
 
@@ -15,7 +16,6 @@ from npa_processor.processing.html_utils import (
     get_full_element_html,
     parse_structural_tokens,
     remove_leading_number_from_html,
-    split_html_by_leading_number,
     split_html_to_paragraphs,
 )
 from npa_processor.processing.revision_builder import sync_parent_body_with_children

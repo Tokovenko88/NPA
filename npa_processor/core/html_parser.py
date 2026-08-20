@@ -4,6 +4,7 @@
 нормативных правовых актов в структурированный JSON.
 """
 
+import importlib.util
 import logging
 import re
 
@@ -28,11 +29,8 @@ class NpaToJsonGenerator:
             handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
             self.logger.addHandler(handler)
         html_content = sup_digits_to_unicode(html_content)
-        try:
-            import lxml
-            self.soup = BeautifulSoup(html_content, 'lxml')
-        except ImportError:
-            self.soup = BeautifulSoup(html_content, 'html.parser')
+        parser = 'lxml' if importlib.util.find_spec('lxml') else 'html.parser'
+        self.soup = BeautifulSoup(html_content, parser)
         self.original_html = html_content
         self.doc_type = doc_type
         self.root_number = root_number
