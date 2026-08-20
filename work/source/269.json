@@ -1,0 +1,1449 @@
+{
+  "npa_id": "16012",
+  "npa_type": "law",
+  "npa_number": "269-ЗС",
+  "npa_author": "Правительство Севастополя",
+  "npa_npa_committee": "Постоянный комитет по градостроительству и земельным вопросам",
+  "pub_filepath": "https://sevzakon.ru/assets/files/zakony/269-zs.pdf",
+  "npa_url": "https://sevzakon.ru/view/laws/bank/2016_244-314/zakon_n_269_zs_ot_27_07_2016/tekst-zakona/",
+  "date_reg": "01.02.2016",
+  "date_1st_reading": "31.05.2016",
+  "date_passed": "19.07.2016",
+  "date_signed": "27.07.2016",
+  "date_pub": "28.07.2016",
+  "valid_from": "08.08.2016",
+  "npa_signer_post": "Губернатор города Севастополя",
+  "npa_signer": "С.И. Меняйло",
+  "date_format": 1,
+  "head_revision": [
+    {
+      "npa_head": "О предоставлении земельных участков, находящихся в собственности города Севастополя, гражданам в собственность бесплатно"
+    }
+  ],
+  "npa_items_revision": [
+    {
+      "item_id": "16012_article_1",
+      "item_type": "article",
+      "item_number": "1",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "paragraph",
+              "html_text": "<p>Настоящий Закон устанавливает случаи и порядок предоставления земельных участков, находящихся в собственности города Севастополя (далее – земельные участки), гражданам в собственность бесплатно, предельные размеры земельных участков, предоставляемых гражданам в собственность бесплатно, порядок постановки граждан на учет в целях предоставления земельного участка в собственность бесплатно (далее – учет).</p>",
+              "order": 1
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Сфера действия настоящего Закона"
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_2",
+      "item_type": "article",
+      "item_number": "2",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_2_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_2_part_2",
+              "order": 2
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Цели предоставления земельного участка гражданам в собственность бесплатно"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_2_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>В собственность бесплатно могут быть предоставлены земельные участки со следующими видами разрешенного использования:</p>",
+                  "order": 1
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_2_part_1_point_1",
+                  "order": 2
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_2_part_1_point_2",
+                  "order": 3
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_2_part_1_point_3",
+                  "order": 4
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_2_part_1_point_4",
+                  "order": 5
+                }
+              ]
+            }
+          ],
+          "item_children": [
+            {
+              "item_id": "16012_article_2_part_1_point_1",
+              "item_type": "point",
+              "item_number": "1)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для индивидуального жилищного строительства;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_2_part_1_point_2",
+              "item_type": "point",
+              "item_number": "2)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения дачного хозяйства;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_2_part_1_point_3",
+              "item_type": "point",
+              "item_number": "3)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения садоводства;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_2_part_1_point_4",
+              "item_type": "point",
+              "item_number": "4)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения огородничества.</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_2_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Предоставление земельного участка в собственность бесплатно осуществляется однократно. Земельный участок предоставляется гражданину по его выбору по одному из указанных в части 1 настоящей статьи видов разрешенного использования.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_3",
+      "item_type": "article",
+      "item_number": "3",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "paragraph",
+              "html_text": "<p>К категориям граждан, имеющих право на приобретение земельных участков в собственность бесплатно, относятся совершеннолетние граждане из числа лиц:</p>",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_3_point_1",
+              "order": 2
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_3_point_2",
+              "order": 3
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_3_point_3",
+              "order": 4
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_3_point_4",
+              "order": 5
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Категории граждан, имеющих право на приобретение земельных участков в собственность бесплатно"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_3_point_1",
+          "item_type": "point",
+          "item_number": "1)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>являющихся родителями из многодетных семей города Севастополя в соответствии с Законом города Севастополя от 26 декабря 2014 года <a href=\"view/laws/bank/dekabr_20141/o_socialnoj_podderzhke_mnogodetnyh_semej_v_gorode_sevastopole/\">№ 98-ЗС</a> «О социальной поддержке многодетных семей в городе Севастополе»;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_3_point_2",
+          "item_type": "point",
+          "item_number": "2)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>относящихся к категории Героев Советского Союза, Героев Российской Федерации и полных кавалеров ордена Славы;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_3_point_3",
+          "item_type": "point",
+          "item_number": "3)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>обладающих статусом инвалидов Великой Отечественной войны в соответствии с законодательством, действовавшим на территории города Севастополя до 21 февраля 2014 года;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_3_point_4",
+          "item_type": "point",
+          "item_number": "4)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>подвергшихся политическим репрессиям и реабилитированных в установленном порядке, принудительно выселенных в 1944 году с территории, соответствующей территории города Севастополя в границах, установленных на день вступления в силу настоящего Закона.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_4",
+      "item_type": "article",
+      "item_number": "4",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "paragraph",
+              "html_text": "<p>Предоставление земельных участков гражданам, указанным в статье 3 настоящего Закона, в собственность бесплатно осуществляется при соблюдении следующих условий:</p>",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_4_point_1",
+              "order": 2
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_4_point_2",
+              "order": 3
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_4_point_3",
+              "order": 4
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_4_point_4",
+              "order": 5
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_4_point_5",
+              "order": 6
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Условия предоставления земельных участков в собственность бесплатно"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_4_point_1",
+          "item_type": "point",
+          "item_number": "1)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>граждане приняты на учет в порядке, установленном законодательством города Севастополя;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_4_point_2",
+          "item_type": "point",
+          "item_number": "2)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>гражданин, его супруг (супруга) и несовершеннолетние дети не имеют иного земельного участка на территории города Севастополя в собственности и в их отношении не принималось решение о предоставлении (передаче) земельного участка в собственность бесплатно или решение, на основании которого возможно завершение оформления права на земельный участок для индивидуального жилищного строительства, ведения дачного хозяйства, садоводства или огородничества, в соответствии с федеральным законодательством и законодательством города Севастополя;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_4_point_3",
+          "item_type": "point",
+          "item_number": "3)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>граждане постоянно проживают на территории города Севастополя в течение пяти лет до подачи заявления о постановке на учет;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_4_point_4",
+          "item_type": "point",
+          "item_number": "4)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>гражданин и (или) его супруг (супруга) и несовершеннолетние дети не отчуждали недвижимое имущество, указанное в настоящей статье, в течение десяти лет до подачи заявления о постановке на учет;</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_4_point_5",
+          "item_type": "point",
+          "item_number": "5)",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>гражданин и (или) его супруг (супруга) должны состоять на учете в качестве нуждающихся в жилых помещениях или у таких граждан имеются основания для их постановки на данный учет, кроме граждан, указанных в пункте 1 статьи 3 настоящего Закона, в целях предоставления земельного участка с видами разрешенного использования, установленными пунктами 2 – 4 статьи 2 настоящего Закона.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_5",
+      "item_type": "article",
+      "item_number": "5",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_2",
+              "order": 2
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_3",
+              "order": 3
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_4",
+              "order": 4
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_5",
+              "order": 5
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_6",
+              "order": 6
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_7",
+              "order": 7
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_8",
+              "order": 8
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_9",
+              "order": 9
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_10",
+              "order": 10
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_5_part_11",
+              "order": 11
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Порядок постановки граждан на учет"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_5_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Учет граждан в соответствии с настоящим Законом осуществляет уполномоченный Правительством Севастополя исполнительный орган государственной власти города Севастополя (далее – уполномоченный орган) на основании заявлений таких граждан.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Постановке на учет подлежат граждане, указанные в статье 3 настоящего Закона, при наличии оснований, предусмотренных пунктами 2 - 5 статьи 4 настоящего Закона.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_3",
+          "item_type": "part",
+          "item_number": "3",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Форма заявления гражданина о постановке на учет (далее - заявление) и перечень документов, прилагаемых к заявлению, устанавливаются Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_4",
+          "item_type": "part",
+          "item_number": "4",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Уполномоченный орган по результатам рассмотрения документов, представленных гражданином, принимает решение о постановке его на учет либо об отказе в постановке на учет не позднее чем через тридцать календарных дней со дня представления заявления. При рассмотрении заявлений, поданных несколькими гражданами в один день, их очередность определяется по времени подачи заявления.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_5",
+          "item_type": "part",
+          "item_number": "5",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Отсутствие на территории города Севастополя свободных от прав третьих лиц и прошедших государственный кадастровый учет земельных участков не является основанием для отказа в постановке на учет.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_6",
+          "item_type": "part",
+          "item_number": "6",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">В случае смерти состоящего на учете гражданина из категории граждан, установленных пунктом 1 статьи 3 настоящего Закона, постановке на учет с сохранением очередности такого гражданина подлежит второй родитель (усыновитель) в порядке, установленном Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_7",
+          "item_type": "part",
+          "item_number": "7",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Учет граждан ведется отдельно в зависимости от видов разрешенного использования земельных участков, указанных в части 1 статьи 2 настоящего Закона.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_8",
+          "item_type": "part",
+          "item_number": "8",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Уполномоченный орган ведет реестр граждан, в отношении которых принято решение о постановке на учет (далее – реестр), в порядке, установленном Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_9",
+          "item_type": "part",
+          "item_number": "9",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Реестр подлежит обязательному опубликованию в порядке, установленном Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_10",
+          "item_type": "part",
+          "item_number": "10",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Основанием для принятия решения о снятии гражданина с учета является:</p>",
+                  "order": 1
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_5_part_10_point_1",
+                  "order": 2
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_5_part_10_point_2",
+                  "order": 3
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_5_part_10_point_3",
+                  "order": 4
+                }
+              ]
+            }
+          ],
+          "item_children": [
+            {
+              "item_id": "16012_article_5_part_10_point_1",
+              "item_type": "point",
+              "item_number": "1)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>заявление гражданина о снятии с учета;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_5_part_10_point_2",
+              "item_type": "point",
+              "item_number": "2)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>решение уполномоченного органа о предоставлении гражданину земельного участка в собственность бесплатно;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_5_part_10_point_3",
+              "item_type": "point",
+              "item_number": "3)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>утрата оснований для предоставления гражданину земельного участка в собственность бесплатно.</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_5_part_11",
+          "item_type": "part",
+          "item_number": "11",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Достижение детьми (одним из детей) совершеннолетия или смерть детей (одного из детей) не является основанием для снятия граждан, установленных пунктом 1 статьи 3 настоящего Закона, с учета.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_6",
+      "item_type": "article",
+      "item_number": "6",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_6_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_6_part_2",
+              "order": 2
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_6_part_3",
+              "order": 3
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_6_part_4",
+              "order": 4
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Формирование перечня земельных участков в целях их предоставления гражданам в собственность бесплатно"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_6_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>В целях предоставления в соответствии с настоящим Законом земельных участков гражданам, состоящим на учете, в собственность бесплатно уполномоченный орган осуществляет в порядке, установленном федеральным законодательством, образование земельных участков, а также утверждает перечень земельных участков в целях их предоставления гражданам в собственность бесплатно (далее – перечень).</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_6_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>При отборе земельных участков для предоставления гражданам в собственность бесплатно с видом разрешенного использования для индивидуального жилищного строительства должны учитываться следующие критерии:</p>",
+                  "order": 1
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_6_part_2_point_1",
+                  "order": 2
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_6_part_2_point_2",
+                  "order": 3
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_6_part_2_point_3",
+                  "order": 4
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_6_part_2_point_4",
+                  "order": 5
+                }
+              ]
+            }
+          ],
+          "item_children": [
+            {
+              "item_id": "16012_article_6_part_2_point_1",
+              "item_type": "point",
+              "item_number": "1)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>транспортная доступность;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_6_part_2_point_2",
+              "item_type": "point",
+              "item_number": "2)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>удовлетворительная экологическая обстановка;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_6_part_2_point_3",
+              "item_type": "point",
+              "item_number": "3)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>существующая обеспеченность земельных участков объектами инженерной инфраструктуры, потребность в строительстве объектов инженерной инфраструктуры и сроки такого строительства, расходы на подключение (технологическое присоединение) строящихся объектов жилищного строительства к сетям инженерно-технического обеспечения;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_6_part_2_point_4",
+              "item_type": "point",
+              "item_number": "4)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>наличие объектов социальной инфраструктуры, коммунального обслуживания и торговли.</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_6_part_3",
+          "item_type": "part",
+          "item_number": "3",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Форма и порядок ведения перечня устанавливаются Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_6_part_4",
+          "item_type": "part",
+          "item_number": "4",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Перечень подлежит официальному опубликованию в порядке, установленном Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_7",
+      "item_type": "article",
+      "item_number": "7",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_2",
+              "order": 2
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_3",
+              "order": 3
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_4",
+              "order": 4
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_5",
+              "order": 5
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_6",
+              "order": 6
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_7",
+              "order": 7
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_8",
+              "order": 8
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_9",
+              "order": 9
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_10",
+              "order": 10
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_7_part_11",
+              "order": 11
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Порядок предоставления земельных участков в собственность бесплатно гражданам, состоящим на учете"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_7_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Порядок предоставления земельных участков в собственность бесплатно в соответствии с настоящим Законом устанавливается Правительством Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Земельные участки, включенные в перечень, предоставляются гражданам в собственность бесплатно в порядке очередности их постановки на учет.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_3",
+          "item_type": "part",
+          "item_number": "3",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>При наличии в перечне земельного участка, соответствующего критериям, указанным гражданином в заявлении при постановке на учет, уполномоченный орган в течение тридцати календарных дней с момента утверждения перечня направляет заявителю уведомление о рассмотрении вопроса о предоставлении гражданину земельного участка в собственность бесплатно. В уведомлении указывается информация о земельном участке (местоположение, размер, кадастровый номер).</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_4",
+          "item_type": "part",
+          "item_number": "4",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Заявитель в течение тридцати календарных дней со дня получения уведомления, указанного в части 3 настоящей статьи, направляет в уполномоченный орган заявление о согласии на приобретение предложенного земельного участка в собственность бесплатно или об отказе от его приобретения.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_5",
+          "item_type": "part",
+          "item_number": "5",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Заявитель, не направивший в уполномоченный орган в установленный срок заявление о согласии на приобретение предложенного земельного участка в собственность бесплатно или об отказе от его приобретения, считается отказавшимся от предложенного земельного участка.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_6",
+          "item_type": "part",
+          "item_number": "6",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>В случае согласия заявителя на приобретение предложенного ему земельного участка уполномоченный орган в течение десяти дней со дня получения заявления гражданина, указанного в части 4 настоящей статьи, принимает решение о предоставлении гражданину земельного участка в собственность бесплатно.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_7",
+          "item_type": "part",
+          "item_number": "7",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Решение о предоставлении заявителю земельного участка в собственность бесплатно является основанием для государственной регистрации права собственности на земельный участок.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_8",
+          "item_type": "part",
+          "item_number": "8",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>В случае отказа заявителя от предложенного земельного участка данный участок предлагается в порядке очередности постановки граждан на учет следующему гражданину.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_9",
+          "item_type": "part",
+          "item_number": "9",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>В случае отказа заявителя от предложенного земельного участка такой гражданин подлежит снятию с учета.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_10",
+          "item_type": "part",
+          "item_number": "10",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">В случае предоставления в собственность бесплатно земельного участка гражданам, установленным пунктом 1 статьи 3 настоящего Закона, земельный участок подлежит оформлению на праве совместной собственности на всех членов многодетной семьи.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_7_part_11",
+          "item_type": "part",
+          "item_number": "11",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">В случае выявления недостоверных сведений, послуживших основанием для постановки гражданина на учет, после получения гражданином земельного участка в собственность бесплатно, решение о предоставлении земельного участка подлежит отмене, а земельный участок – возврату в собственность города Севастополя.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_8",
+      "item_type": "article",
+      "item_number": "8",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_8_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_8_part_2",
+              "order": 2
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Максимальные и минимальные размеры земельных участков, предоставляемых гражданам в собственность бесплатно"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_8_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">До определения градостроительными регламентами предельных (максимальных и минимальных) размеров земельных участков, в отношении которых в соответствии с федеральным законодательством и законодательством города Севастополя о градостроительной деятельности устанавливаются градостроительные регламенты, предельные (максимальные и минимальные) размеры земельных участков, предоставляемых гражданам в собственность бесплатно, устанавливаются настоящей статьей.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_8_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p class=\"ConsPlusNormal\">Для земельных участков, предоставляемых в соответствии с настоящим Законом в собственность бесплатно, устанавливаются следующие предельные (минимальные и максимальные) размеры:</p>",
+                  "order": 1
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_8_part_2_point_1",
+                  "order": 2
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_8_part_2_point_2",
+                  "order": 3
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_8_part_2_point_3",
+                  "order": 4
+                },
+                {
+                  "type": "child_ref",
+                  "item_id": "16012_article_8_part_2_point_4",
+                  "order": 5
+                }
+              ]
+            }
+          ],
+          "item_children": [
+            {
+              "item_id": "16012_article_8_part_2_point_1",
+              "item_type": "point",
+              "item_number": "1)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для индивидуального жилищного строительства – от 0,04 до 0,10 гектара;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_8_part_2_point_2",
+              "item_type": "point",
+              "item_number": "2)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения дачного хозяйства – от 0,04 до 0,08 гектара;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_8_part_2_point_3",
+              "item_type": "point",
+              "item_number": "3)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения садоводства – от 0,04 до 0,08 гектара;</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "item_id": "16012_article_8_part_2_point_4",
+              "item_type": "point",
+              "item_number": "4)",
+              "item_level": 3,
+              "revisions": [
+                {
+                  "body": [
+                    {
+                      "type": "paragraph",
+                      "html_text": "<p>для ведения огородничества – от 0,04 до 0,08 гектара.</p>",
+                      "order": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item_id": "16012_article_9",
+      "item_type": "article",
+      "item_number": "9",
+      "item_level": 1,
+      "revisions": [
+        {
+          "body": [
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_9_part_1",
+              "order": 1
+            },
+            {
+              "type": "child_ref",
+              "item_id": "16012_article_9_part_2",
+              "order": 2
+            }
+          ]
+        }
+      ],
+      "head_revisions": [
+        {
+          "head_text": "Заключительные положения"
+        }
+      ],
+      "item_children": [
+        {
+          "item_id": "16012_article_9_part_1",
+          "item_type": "part",
+          "item_number": "1",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Настоящий Закон вступает в силу по истечении десяти дней после дня его официального опубликования.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "item_id": "16012_article_9_part_2",
+          "item_type": "part",
+          "item_number": "2",
+          "item_level": 2,
+          "revisions": [
+            {
+              "body": [
+                {
+                  "type": "paragraph",
+                  "html_text": "<p>Правительству Севастополя в течение двух месяцев со дня вступления в силу настоящего Закона принять нормативные правовые акты, регулирующие отношения в сфере предоставления земельных участков гражданам в собственность бесплатно в соответствии с настоящим Законом.</p>",
+                  "order": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
