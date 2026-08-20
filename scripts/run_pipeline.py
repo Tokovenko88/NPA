@@ -326,10 +326,12 @@ def main(args=None):
         if reorg_applied:
             history.snapshot('after_reorganization', result_data, {'label': 'after structural reorganization'})
 
-        change_type_counts = {}
-        for change in all_changes:
-            ct = change.get('type', 'unknown')
-            change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
+    change_type_counts = {}
+    for change in all_changes:
+        ct = change.get('type', 'unknown')
+        change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
+
+    if not parsed.stage or parsed.stage >= 5:
 
         for change in all_changes:
             structural = change.get('structural_element', '').strip()
