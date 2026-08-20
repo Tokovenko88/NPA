@@ -7,21 +7,47 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 from npa_processor.constants import TYPE_TO_RUSSIAN
-from npa_processor.processing.stage_answers import get_stage4_agent_answer
 from npa_processor.processing.element_finder import (
     _extract_paragraph_order,
     _resolve_modified_by_ids,
     find_item_by_revision_number,
 )
-
 from npa_processor.processing.element_ops import (
     _add_new_element,
     _close_revision,
     _ensure_path,
     _fetch_source_html_for_change,
     _find_existing_element_flexible,
+    _make_new_revision,
+    build_new_body_preserving_child_refs,
     is_highlights_empty,
     parse_add_new_field,
+)
+from npa_processor.processing.html_utils import (
+    clean_and_unwrap_html,
+    clean_description_html,
+    compute_highlights_from_html_diff,
+    extract_paragraphs_by_indices,
+    get_current_head,
+    get_full_element_html,
+    parse_stage4_answer,
+    parse_structural_tokens,
+    remove_leading_number_from_html,
+    split_html_to_paragraphs,
+)
+from npa_processor.processing.revision_builder import extract_child_refs_from_revision
+from npa_processor.processing.stage_answers import get_stage4_agent_answer
+from npa_processor.processing.text_utils import (
+    adjust_punctuation_after_deletion,
+    clean_head_text,
+    close_revision_date,
+    safe_re_sub,
+)
+from npa_processor.processing.tree_utils import (
+    find_appendix_by_number,
+    find_child_by_type_and_number,
+    find_item_by_id,
+    find_parent,
 )
 
 
@@ -583,8 +609,7 @@ def _apply_change_to_element_head(change, data, change_data, valid_from, rev_num
 def _apply_change_to_preamble(change, data, change_data, valid_from, rev_number,
                                 source_element, source_item_id, log_callback,
                                 extra_options,
-                                source_context_root, rebuild_ids):
-    from npa_processor.processing.revision_builder import extract_child_refs_from_revision
+                                                                source_context_root, rebuild_ids):
     ch_type = change.get('type', '').strip()
     highlights = change.get('highlights', None)
     def find_preamble_item(items):
@@ -703,9 +728,8 @@ def _apply_change_to_element_content(element, ch_type, description, valid_from,
                                       modified_by_id_str, extra_options,
                                       log_callback, rebuild_ids,
                                       structural, source_context_root, change_data, data,
-                                      source_element, source_item_id, rev_number,
+                                                                            source_element, source_item_id, rev_number,
                                       change=None):
-    from npa_processor.processing.revision_builder import extract_child_refs_from_revision
     if 'revisions' not in element:
         element['revisions'] = [{'body': []}]
     revisions = element['revisions']

@@ -7,6 +7,8 @@
 import logging
 import re
 
+from bs4 import BeautifulSoup
+
 from npa_processor._bootstrap import _bootstrap_project_root
 from npa_processor.processing.text_utils import (
     normalize_number_string,
