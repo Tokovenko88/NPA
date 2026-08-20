@@ -361,14 +361,12 @@ def main(args=None):
                         if parsed.strict:
                             log(f"  Stage 5: неоднозначность для '{structural}', отказ (strict): {e}", 'error')
                             change['_resolved_item_id'] = None
-                            learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
                             continue
                         log(f"  Неоднозначность для '{structural}', элемент не разрешён", 'warning')
                     if target_elem:
                         change['_resolved_item_id'] = target_elem['item_id']
                     else:
                         change['_resolved_item_id'] = None
-                        learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
 
         changes_applied = 0
         changes_failed = 0
@@ -396,9 +394,6 @@ def main(args=None):
                     changes_applied += 1
                     applied = True
                     resolved_id = change.get('_resolved_item_id') or None
-                    if resolved_id and not structural.lower().startswith('наименование'):
-                        learner.record_mapping(structural, resolved_id, success=True,
-                                               source_context=source_npa_id)
                     if applied:
                         change_log.append({
                             'structural_element': structural, 'type': ch_type,
@@ -433,8 +428,6 @@ def main(args=None):
                             learner.record_recovery(structural, 'change_not_applied',
                                                     're-resolve via learning', success=True,
                                                     source_context=source_npa_id)
-                        learner.record_mapping(structural, resolved_id, success=True,
-                                               source_context=source_npa_id)
                         log(f"  RECOVERY succeeded: {structural}", 'result')
                         history.snapshot(f'after_change_{change_idx}_recovered', result_data,
                                          {'structural_element': structural, 'type': ch_type,
@@ -454,7 +447,6 @@ def main(args=None):
                     'structural_element': structural, 'type': ch_type,
                     'applied': False, 'error': error_msg,
                 })
-                learner.record_mapping(structural, None, success=False, source_context=source_npa_id)
 
         log(f"\nStage 5: Applied {changes_applied} changes. Failed {changes_failed}. Rebuild IDs: {len(rebuild_ids)}")
 
@@ -937,6 +929,39 @@ def main(args=None):
             error_message=outcome['reason'],
             source_context=source_npa_id,
         )
+
+    # Обновить маппинги самообучения на основе реальных исходов верификации
+    for outcome in vdict.get('change_outcomes', []):
+        idx = outcome.get('change_index')
+        if idx is None or idx >= len(all_changes):
+            continue
+        change = all_changes[idx]
+        structural = change.get('structural_element', '').strip()
+        ch_type = change.get('type', '').strip()
+        resolved_id = change.get('_resolved_item_id') or None
+        applied = outcome.get('passed', False)
+        log_entry = change_log[idx] if idx < len(change_log) else {}
+        was_applied = log_entry.get('applied', False)
+
+        if applied:
+            learner.record_mapping(
+                structural, resolved_id, success=True,
+                target_npa_id=target_npa_id, source_npa_id=source_npa_id,
+                change_type=ch_type, outcome='verified_success',
+                source_context=source_npa_id,
+            )
+        else:
+            if not was_applied:
+                outcome_label = 'failed'
+            else:
+                outcome_label = 'verification_failed'
+            learner.record_mapping(
+                structural, None, success=False,
+                target_npa_id=target_npa_id, source_npa_id=source_npa_id,
+                change_type=ch_type, outcome=outcome_label,
+                error_category=outcome.get('reason', ''),
+                source_context=source_npa_id,
+            )
 
     # Записать характерные примеры ошибок
     for err in vdict.get('errors', []):

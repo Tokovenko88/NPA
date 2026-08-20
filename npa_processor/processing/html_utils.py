@@ -690,15 +690,6 @@ def create_element_skeleton(item_type, item_number, html_text, parent_id, existi
         if modified_by_id:
             rev['modified_by_id'] = modified_by_id
         element['revisions'] = [rev]
-    else:
-        body = []
-        if html_text:
-            if isinstance(html_text, list):
-                for idx, t in enumerate(html_text, 1):
-                    body.append({'type': 'paragraph', 'html_text': t, 'order': idx})
-            else:
-                body.append({'type': 'paragraph', 'html_text': html_text, 'order': 1})
-        element['revisions'] = [{'body': body}]
     return element
 
 

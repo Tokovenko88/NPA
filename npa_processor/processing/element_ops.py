@@ -18,6 +18,7 @@ from npa_processor.processing.html_utils import (
     remove_leading_number_from_html,
     split_html_to_paragraphs,
 )
+from npa_processor.processing.text_utils import clean_html_text
 from npa_processor.processing.revision_builder import sync_parent_body_with_children
 from npa_processor.processing.text_utils import (
     clean_head_text,
@@ -451,6 +452,15 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                 new_head = explicit_head_revs[-1].get('head_text')
             if new_head is not None:
                 new_head = clean_head_text(new_head, old_element.get('item_type'), str(old_element.get('item_number', '')))
+    if new_head and new_body:
+        first_block = new_body[0]
+        if first_block.get('type') == 'paragraph':
+            first_text = clean_html_text(first_block.get('html_text', ''))
+            first_cleaned = clean_head_text(first_text, old_element.get('item_type', ''), str(old_element.get('item_number', '')))
+            if first_cleaned == new_head:
+                new_body.pop(0)
+                for idx, block in enumerate(new_body, 1):
+                    block['order'] = idx
     old_child_ids_before = [c.get('item_id') for c in old_children]
     old_child_ids_after = [c.get('item_id') for c in old_element.get('item_children', [])]
     children_changed = (old_child_ids_before != old_child_ids_after)
@@ -876,7 +886,7 @@ def _add_new_element(parent, child_type, child_number, description, modified_by_
         existing_ids=existing_ids,
         id_counter=id_counter,
         item_level=child_level,
-        valid_from=valid_from.strftime('%d.%m.%Y') if valid_from else None,
+        valid_from=None,
         modified_by_id=modified_by_id,
         mod_type='add',
         doc_id=data.get('npa_id'),
@@ -1049,11 +1059,11 @@ def rebuild_element_with_history(data, element_id, valid_from, modified_by_id_st
                         first_text_node = first_block.find(string=True)
                         if first_text_node is not None:
                             node_text = str(first_text_node)
-                            stripped = node_text.lstrip('\u00ab\u00bb"\u201c\u201d\u2018\u2019\' \t\n\r\u00a0')
+                            stripped = node_text.strip('\u00ab\u00bb"\u201c\u201d\u2018\u2019\' \t\n\r\u00a0')
                             if stripped != node_text:
                                 first_text_node.replace_with(stripped)
                                 current_html = str(quote_soup)
-                                _log("   Снята ведущая кавычка с заголовка для парсера", 'info')
+                                _log("   Снята ведущая/завершающая кавычка с заголовка для парсера", 'info')
     if root_type == 'structured_table' and not re.search(r'<table\b', current_html, re.IGNORECASE):
         current_html = f'<table border="1" cellpadding="0" cellspacing="0">{current_html}</table>'
     _log(f"Вызов NpaToJsonGenerator для {element_id} (mod_type={effective_mod_type})", 'info')
