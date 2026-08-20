@@ -331,6 +331,9 @@ def main(args=None):
         ct = change.get('type', 'unknown')
         change_type_counts[ct] = change_type_counts.get(ct, 0) + 1
 
+    changes_applied = 0
+    changes_failed = 0
+
     if not parsed.stage or parsed.stage >= 5:
 
         for change in all_changes:
