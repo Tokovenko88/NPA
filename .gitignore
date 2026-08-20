@@ -30,12 +30,10 @@ Thumbs.db
 # Working files
 work/source/*
 work/answers/*
-work/results/*
 work/chain_results/*
 !work/.gitkeep
 !work/source/.gitkeep
 !work/answers/.gitkeep
-!work/results/.gitkeep
 !work/chain_results/.gitkeep
 
 # Agent runtime data (not instructions or examples)

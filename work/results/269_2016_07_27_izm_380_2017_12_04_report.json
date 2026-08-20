@@ -1,0 +1,166 @@
+{
+  "status": "Успешно",
+  "source_npa": {
+    "number": "380-ЗС",
+    "date_pub": "04.12.2017"
+  },
+  "target_npa": {
+    "number": "269-ЗС",
+    "date_pub": "28.07.2016"
+  },
+  "stage1": {
+    "found": 0,
+    "applied": 0,
+    "failed": 0
+  },
+  "stage2": {
+    "found": 0,
+    "applied": 0,
+    "failed": 0
+  },
+  "stage3": {
+    "found": 11,
+    "applied": 11,
+    "failed": 0,
+    "by_type": {
+      "new_redaction": 9,
+      "add": 2
+    }
+  },
+  "stage4": {
+    "processed": 0
+  },
+  "stage5": {
+    "rebuild_count": 10
+  },
+  "verification": {
+    "passed": true,
+    "total_errors": 0,
+    "total_warnings": 7,
+    "changes_total": 11,
+    "changes_passed": 11,
+    "changes_failed": 0
+  },
+  "auto_fixes": [
+    {
+      "bug": "revision_valid_from_missing",
+      "fix": "Установлен valid_from='15.12.2017' для 67 элементов",
+      "applied_to": [
+        "16012_article_1",
+        "16012_article_2",
+        "16012_article_2_part_1",
+        "16012_article_2_part_1_point_1",
+        "16012_article_2_part_1_point_2",
+        "16012_article_2_part_1_point_3",
+        "16012_article_2_part_1_point_4",
+        "16012_article_2_part_2",
+        "16012_article_3",
+        "16012_article_3_point_1"
+      ]
+    },
+    {
+      "bug": "child_ref_missing",
+      "fix": "Добавлены отсутствующие child_ref в body родителей (39 шт.)",
+      "applied_to": [
+        "16012_article_2_part_1",
+        "16012_article_2_part_2",
+        "16012_article_3_point_1",
+        "16012_article_3_point_2",
+        "16012_article_3_point_3",
+        "16012_article_3_point_4",
+        "16012_article_4_point_1",
+        "16012_article_4_point_2",
+        "16012_article_4_point_3",
+        "16012_article_4_point_4"
+      ]
+    },
+    {
+      "bug": "item_level_invalid",
+      "fix": "Пересчитан item_level для 2 элементов",
+      "applied_to": [
+        "16012_article_5_1",
+        "16012_article_5_2"
+      ]
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_2 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_3 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_4 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_5 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_6 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_7 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML",
+    "VERIFY[children_inlined_in_body]: Р’ 16012_article_8 РѕР±РЅР°СЂСѓР¶РµРЅС‹ РјРЅРѕР¶РµСЃС‚РІРµРЅРЅС‹Рµ <p> РІ body Р±Р»РѕРєРµ, РЅРѕ РµСЃС‚СЊ child_ref вЂ” РІРѕР·РјРѕР¶РЅРѕ, РґРµС‚Рё РІР»РѕР¶РµРЅС‹ РЅР°РїСЂСЏРјСѓСЋ РІ HTML"
+  ],
+  "change_log": [
+    {
+      "structural_element": "Наименование",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 1",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 2",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 3",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 4",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 5",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "НПА",
+      "type": "add",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "НПА",
+      "type": "add",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 6",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 7",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    },
+    {
+      "structural_element": "Статья 8",
+      "type": "new_redaction",
+      "applied": true,
+      "error": ""
+    }
+  ],
+  "result_file": "work/results/269_2016_07_27_izm_380_2017_12_04.json",
+  "elapsed_seconds": 11.371775
+}
