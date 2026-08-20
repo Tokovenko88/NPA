@@ -25,7 +25,7 @@ class DocumentHistory:
 
     SNAPSHOTS_SUBDIR = 'history'
 
-    def __init__(self, base_dir, run_id=None):
+    def __init__(self, base_dir, run_id=None, case_id=None, attempt_id=None, iteration_number=None):
         if run_id is None:
             run_id = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         self.run_id = run_id
@@ -35,6 +35,9 @@ class DocumentHistory:
         self._counter = 0
         self._source_hash = None
         self._index_path = os.path.join(self.base_dir, '_index.json')
+        self.case_id = case_id
+        self.attempt_id = attempt_id
+        self.iteration_number = iteration_number
 
     @property
     def index_path(self):
@@ -87,8 +90,56 @@ class DocumentHistory:
             json.dump({
                 'run_id': self.run_id,
                 'source_hash': self._source_hash,
+                'case_id': self.case_id,
+                'attempt_id': self.attempt_id,
+                'iteration_number': self.iteration_number,
                 'snapshots': self._snapshots,
             }, f, ensure_ascii=False, indent=2)
+
+    def finalize_run(self, outcomes, metadata=None):
+        """Записать итоговый результат запуска с классификацией исходов.
+
+        Parameters
+        ----------
+        outcomes : list[dict]
+            Список исходов изменения. Каждый элемент должен содержать
+            ``structural_element`` и ``outcome`` (``resolved``, ``applied``,
+            ``verified_success``, ``failed``, ``verification_failed`` или
+            пользовательское значение).
+        metadata : dict | None
+            Дополнительные метаданные запуска.
+
+        Returns
+        -------
+        dict
+            Финальные метаданные, включая флаги ``trusted_for_positive_learning``
+            и ``diagnostic_learning_only``.
+        """
+        verified_success = any(o.get('outcome') == 'verified_success' for o in outcomes)
+        has_failure = any(o.get('outcome') in ('failed', 'verification_failed') for o in outcomes)
+        unknown_outcomes = [o for o in outcomes if o.get('outcome') not in (
+            'resolved', 'applied', 'verified_success', 'failed', 'verification_failed'
+        )]
+
+        trusted = bool(verified_success and not has_failure and not unknown_outcomes)
+        diagnostic_only = bool(has_failure or not verified_success or unknown_outcomes)
+
+        final_metadata = {
+            'outcomes': outcomes,
+            'trusted_for_positive_learning': trusted,
+            'diagnostic_learning_only': diagnostic_only,
+            'finalized_at': datetime.now().isoformat(),
+            'verified_success_count': sum(1 for o in outcomes if o.get('outcome') == 'verified_success'),
+            'apply_fail_count': sum(1 for o in outcomes if o.get('outcome') == 'failed'),
+            'verification_fail_count': sum(1 for o in outcomes if o.get('outcome') == 'verification_failed'),
+        }
+        if unknown_outcomes:
+            final_metadata['unknown_outcomes'] = unknown_outcomes
+        if metadata:
+            final_metadata.update(metadata)
+
+        self._write_index()
+        return final_metadata
 
     def list_snapshots(self):
         return list(self._snapshots)

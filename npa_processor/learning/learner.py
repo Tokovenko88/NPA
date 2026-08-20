@@ -19,7 +19,6 @@
 последующих запусках.
 """
 
-import copy
 import json
 import logging
 import os
@@ -119,50 +118,141 @@ class LearningEngine:
     # ------------------------------------------------------------------
     # 2. Маппинги structural_element -> item_id
     # ------------------------------------------------------------------
+    def _mapping_key(self, structural_element, target_npa_id='', source_npa_id='', change_type='', element_signature=None):
+        if target_npa_id or source_npa_id or change_type or element_signature:
+            return json.dumps({
+                'structural_element': structural_element,
+                'target_npa_id': target_npa_id,
+                'source_npa_id': source_npa_id,
+                'change_type': change_type,
+                'element_signature': element_signature,
+            }, sort_keys=True, ensure_ascii=False)
+        return structural_element
+
     def record_mapping(self, structural_element, item_id, success, source_context='',
-                       error_category=None, error_message=None):
+                       error_category=None, error_message=None,
+                       target_npa_id='', source_npa_id='', change_type='',
+                       element_signature=None, outcome=None, case_id=''):
         """Записать результат разрешения structural_element → item_id.
 
-        РўРµРїРµСЂСЊ Р·Р°РїРёСЃСЊ РґРµР»Р°РµС‚СЃСЏ **РїРѕСЃР»Рµ** С„Р°РєС‚РёС‡РµСЃРєРѕРіРѕ РїСЂРёРјРµРЅРµРЅРёСЏ изменения,
-        РїРѕСЌС‚РѕРјСѓ success РѕС‚СЂР°Р¶Р°РµС‚ РЅРµ РїСЂРѕСЃС‚Рѕ РїРѕРёСЃРє элемента, Р° РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ
-        РІСЃРµРіРѕ РїСЂРёРјРµРЅРµРЅРёСЏ изменения Рє СЌС‚РѕРјСѓ element_id.
+        Теперь учитывается контекст ``target_npa_id`` / ``source_npa_id`` /
+        ``change_type`` / ``element_signature``, а исход классифицируется
+        на ``resolved``, ``applied``, ``verified_success``, ``failed``,
+        ``verification_failed``. Если контекст не передан, сохраняется
+        backward compatibility со старым поведением.
+
+        Parameters
+        ----------
+        outcome : str | None
+            Классифицированный исход. Если не передан, ``success=True``
+            трактуется как ``verified_success``, ``success=False`` как
+            ``failed`` (только при наличии контекста).
+        case_id : str
+            Идентификатор кейса внесения изменений.
         """
-        key = structural_element
+        has_context = any([target_npa_id, source_npa_id, change_type, element_signature])
+        key = self._mapping_key(structural_element, target_npa_id, source_npa_id, change_type, element_signature)
+
         if key not in self._mappings:
             self._mappings[key] = {
                 'item_id': item_id,
+                'structural_element': structural_element,
+                'target_npa_id': target_npa_id,
+                'source_npa_id': source_npa_id,
+                'change_type': change_type,
+                'element_signature': element_signature,
+                'verified_success_count': 0,
+                'apply_fail_count': 0,
+                'verification_fail_count': 0,
                 'success_count': 0,
                 'fail_count': 0,
+                'telemetry_count': 0,
                 'source_context': source_context,
                 'last_used': datetime.now().isoformat(),
                 'error_categories': {},
+                'failure_categories': {},
+                'case_ids': [],
+                'last_verified_success': None,
+                'last_failure': None,
+                'contested': False,
             }
         rec = self._mappings[key]
         rec['item_id'] = item_id
         rec['last_used'] = datetime.now().isoformat()
-        if success:
-            rec['success_count'] += 1
-            rec.pop('last_error', None)
+
+        if outcome is not None:
+            rec['telemetry_count'] += 1
+            if outcome == 'verified_success':
+                rec['verified_success_count'] += 1
+                rec['last_verified_success'] = datetime.now().isoformat()
+                if rec['apply_fail_count'] > 0 or rec['verification_fail_count'] > 0:
+                    rec['contested'] = True
+            elif outcome == 'failed':
+                rec['apply_fail_count'] += 1
+                rec['last_failure'] = datetime.now().isoformat()
+            elif outcome == 'verification_failed':
+                rec['verification_fail_count'] += 1
+                rec['last_failure'] = datetime.now().isoformat()
+            if case_id and case_id not in rec['case_ids']:
+                rec['case_ids'].append(case_id)
+        elif not has_context:
+            if success:
+                rec['success_count'] += 1
+                rec.pop('last_error', None)
+            else:
+                rec['fail_count'] += 1
+                rec['last_error'] = datetime.now().isoformat()
+                if error_category:
+                    cats = rec.setdefault('error_categories', {})
+                    cats[error_category] = cats.get(error_category, 0) + 1
+                if error_message:
+                    rec['last_error_message'] = error_message
         else:
-            rec['fail_count'] += 1
-            rec['last_error'] = datetime.now().isoformat()
-            if error_category:
-                cats = rec.setdefault('error_categories', {})
-                cats[error_category] = cats.get(error_category, 0) + 1
-            if error_message:
-                rec['last_error_message'] = error_message
+            rec['telemetry_count'] += 1
+            if success:
+                rec['verified_success_count'] += 1
+                rec['success_count'] += 1
+                rec['last_verified_success'] = datetime.now().isoformat()
+                if rec['apply_fail_count'] > 0 or rec['verification_fail_count'] > 0:
+                    rec['contested'] = True
+            else:
+                rec['apply_fail_count'] += 1
+                rec['fail_count'] += 1
+                rec['last_failure'] = datetime.now().isoformat()
+                if error_category:
+                    cats = rec.setdefault('failure_categories', {})
+                    cats[error_category] = cats.get(error_category, 0) + 1
+            if case_id and case_id not in rec['case_ids']:
+                rec['case_ids'].append(case_id)
+
         save_json(self.MAPPINGS_FILE, self._mappings)
 
+    def _mapping_confidence(self, rec):
+        vs = rec.get('verified_success_count', 0)
+        af = rec.get('apply_fail_count', 0)
+        vf = rec.get('verification_fail_count', 0)
+        return vs / (vs + vf + af + 2)
 
-    def get_reliable_mapping(self, structural_element):
+    def get_reliable_mapping(self, structural_element, min_confidence=0.33,
+                             target_npa_id='', source_npa_id='', change_type='',
+                             element_signature=None):
         """Вернуть проверенный item_id или None.
 
-        РќР°РґС‘Р¶РЅС‹Рј СЃС‡РёС‚Р°РµС‚СЃСЏ РјР°РїРїРёРЅРі, РіРґРµ ``success_count > fail_count`` Рё
-        ``success_count >= 1`` (С‚.Рµ. С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ СѓСЃРїРµС€РЅС‹Р№ РѕРїС‹С‚).
+        При наличии контекста используется улучшенная confidence-формула.
+        Без контекста сохраняется старое поведение (``success_count > fail_count``).
         """
-        rec = self._mappings.get(structural_element)
+        key = self._mapping_key(structural_element, target_npa_id, source_npa_id, change_type, element_signature)
+        rec = self._mappings.get(key)
         if not rec:
             return None
+
+        has_context = any([target_npa_id, source_npa_id, change_type, element_signature])
+        if has_context:
+            confidence = self._mapping_confidence(rec)
+            if confidence >= min_confidence and rec.get('verified_success_count', 0) > 0:
+                return rec.get('item_id')
+            return None
+
         success = rec.get('success_count', 0)
         fail = rec.get('fail_count', 0)
         if success > 0 and success > fail:
@@ -171,14 +261,38 @@ class LearningEngine:
                 return item_id
         return None
 
-    def get_reliable_mappings(self, structural_elements):
+    def get_reliable_mappings(self, structural_elements, **kwargs):
         """Пакетный запрос проверенных маппингов."""
         result = {}
         for se in structural_elements:
-            mapped = self.get_reliable_mapping(se)
+            mapped = self.get_reliable_mapping(se, **kwargs)
             if mapped is not None:
                 result[se] = mapped
         return result
+
+    def get_mapping_diagnostics(self, structural_element, target_npa_id='', source_npa_id='', change_type='', element_signature=None):
+        """Вернуть детальную диагностику маппинга."""
+        key = self._mapping_key(structural_element, target_npa_id, source_npa_id, change_type, element_signature)
+        rec = self._mappings.get(key)
+        if not rec:
+            return None
+        return {
+            'item_id': rec.get('item_id'),
+            'structural_element': rec.get('structural_element'),
+            'target_npa_id': target_npa_id,
+            'source_npa_id': source_npa_id,
+            'change_type': change_type,
+            'verified_success_count': rec.get('verified_success_count', 0),
+            'apply_fail_count': rec.get('apply_fail_count', 0),
+            'verification_fail_count': rec.get('verification_fail_count', 0),
+            'telemetry_count': rec.get('telemetry_count', 0),
+            'confidence': self._mapping_confidence(rec),
+            'contested': rec.get('contested', False),
+            'failure_categories': rec.get('failure_categories', {}),
+            'last_verified_success': rec.get('last_verified_success'),
+            'last_failure': rec.get('last_failure'),
+            'case_ids': rec.get('case_ids', []),
+        }
 
 
 
@@ -347,7 +461,7 @@ class LearningEngine:
         return suggestions
 
     # ------------------------------------------------------------------
-    # 7. РђРіСЂРµРіРёСЂРѕРІР°РЅРЅР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°
+    # 7. Агрегированная статистика
     # ------------------------------------------------------------------
     def get_stats(self):
         total_runs = len(self._log)
@@ -356,14 +470,16 @@ class LearningEngine:
         total_corrections = sum(len(e.get('manual_corrections', [])) for e in self._run_log)
         reliable_mappings = sum(
             1 for rec in self._mappings.values()
-            if rec.get('success_count', 0) > rec.get('fail_count', 0)
+            if self._mapping_confidence(rec) >= 0.33 and rec.get('verified_success_count', 0) > 0
         )
+        contested_mappings = sum(1 for rec in self._mappings.values() if rec.get('contested'))
         return {
             'total_runs': total_runs,
             'total_changes_applied': total_applied,
             'total_changes_failed': total_failed,
             'total_manual_corrections': total_corrections,
             'reliable_mappings': reliable_mappings,
+            'contested_mappings': contested_mappings,
             'total_verification_passes': sum(
                 1 for e in self._verification_log if e.get('passed')
             ),
@@ -374,21 +490,29 @@ class LearningEngine:
             'total_recoveries_successful': sum(
                 1 for e in self._recovery_log if e.get('success_count', 0) > e.get('fail_count', 0)
             ),
+            'total_mappings': len(self._mappings),
+            'mappings_with_failures': sum(
+                1 for rec in self._mappings.values()
+                if rec.get('apply_fail_count', 0) + rec.get('verification_fail_count', 0) > 0
+            ),
         }
 
     def summarize_for_agent(self):
         lines = []
         stats = self.get_stats()
-        lines.append(f"# РЎР°РјРѕРѕР±СѓС‡РµРЅРёРµ: СЃС‚Р°С‚РёСЃС‚РёРєР° ({stats['total_runs']} Р·Р°РїСѓСЃРєРѕРІ)")
-        lines.append(f"- РџСЂРёРјРµРЅРµРЅРѕ РёР·РјРµРЅРµРЅРёР№: {stats['total_changes_applied']}")
-        lines.append(f"- РћС€РёР±РѕРє РїСЂРёРјРµРЅРµРЅРёСЏ: {stats['total_changes_failed']}")
-        lines.append(f"- Р’РµСЂРёС„РёРєР°С†РёР№ РїСЂРѕС€Р»Р°: {stats['total_verification_passes']}")
-        lines.append(f"- Р’РµСЂРёС„РёРєР°С†РёР№ РїСЂРѕРІР°Р»РµРЅРѕ: {stats['total_verification_fails']}")
-        lines.append(f"- РќР°РґС‘Р¶РЅС‹С… РјР°РїРїРёРЅРіРѕРІ: {stats['reliable_mappings']}")
-        lines.append(f"- Р РµРєР°РІРµСЂРё РїРѕРїС‹С‚РѕРє: {stats['total_recoveries_attempted']}")
-        lines.append(f"- Р РµРєР°РІРµСЂРё СѓСЃРїРµС€РЅС‹С…: {stats['total_recoveries_successful']}")
+        lines.append(f"# Самообучение: статистика ({stats['total_runs']} запусков)")
+        lines.append(f"- Применено изменений: {stats['total_changes_applied']}")
+        lines.append(f"- Ошибок применения: {stats['total_changes_failed']}")
+        lines.append(f"- Верификаций пройдено: {stats['total_verification_passes']}")
+        lines.append(f"- Верификаций провалено: {stats['total_verification_fails']}")
+        lines.append(f"- Надёжных маппингов: {stats['reliable_mappings']}")
+        lines.append(f"- Оспариваемых маппингов: {stats['contested_mappings']}")
+        lines.append(f"- Рековерсий попыток: {stats['total_recoveries_attempted']}")
+        lines.append(f"- Рековерий успешных: {stats['total_recoveries_successful']}")
+        lines.append(f"- Всего маппингов: {stats['total_mappings']}")
+        lines.append(f"- Маппингов с ошибками: {stats['mappings_with_failures']}")
         lines.append("")
-        lines.append("## РџРѕСЃР»РµРґРЅРёРµ Р·Р°РїСѓСЃРєРё")
+        lines.append("## Последние запуски")
         for entry in self._log[-5:]:
             ts = entry.get('timestamp', '')[:19]
             lines.append(
@@ -399,14 +523,14 @@ class LearningEngine:
                 f"status={entry.get('notes', '')}"
             )
         lines.append("")
-        lines.append("## РўРѕРї-5 РїР°С‚С‚РµСЂРЅРѕРІ РїСЂРѕРІР°Р»РѕРІ")
+        lines.append("## Топ-5 паттернов провалов")
         for p in self.get_failure_patterns(limit=5):
             lines.append(
                 f"- '{p['structural_element']}' [{p['error_category']}]: "
-                f"{p['count']} СЂР°Р· вЂ” {p['suggestion']}"
+                f"{p['count']} раз — {p['suggestion']}"
             )
         if not self.get_failure_patterns(limit=5):
-            lines.append("- РќРµС‚ Р·Р°С„РёРєСЃРёСЂРѕРІР°РЅРЅС‹С… РїР°С‚С‚РµСЂРЅРѕРІ РїСЂРѕРІР°Р»РѕРІ")
+            lines.append("- Нет зафиксированных паттернов провалов")
         return '\n'.join(lines)
 
     # ------------------------------------------------------------------

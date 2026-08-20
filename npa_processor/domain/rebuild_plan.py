@@ -43,7 +43,7 @@ def ancestor_ids(item_id: str, parent_map: Mapping[str, str | None]) -> list[str
     """Return ancestors from the direct parent upwards, without cycles."""
     result: list[str] = []
     current = parent_map.get(item_id)
-    seen: set[str] = set()
+    seen: set[str] = {item_id}
     while current and current not in seen:
         result.append(current)
         seen.add(current)
@@ -52,10 +52,12 @@ def ancestor_ids(item_id: str, parent_map: Mapping[str, str | None]) -> list[str
 
 
 def rebuild_order(item_ids: Iterable[str], parent_map: Mapping[str, str | None]) -> list[str]:
-    """Return requested IDs in deterministic child-first order.
+    """Return requested IDs plus their ancestors in deterministic child-first order.
 
     A requested parent dominates requested descendants because rebuilding the
-    parent covers its subtree. Malformed cycles are cut by ``ancestor_ids``.
+    parent covers its subtree. Ancestors of the effective set are appended
+    so that dependent elements are ready before their children. Malformed
+    cycles are cut by ``ancestor_ids``.
     """
     requested = {str(item_id) for item_id in item_ids if item_id}
     if not requested:
@@ -67,14 +69,18 @@ def rebuild_order(item_ids: Iterable[str], parent_map: Mapping[str, str | None])
         if not any(ancestor in requested for ancestor in ancestor_ids(item_id, parent_map))
     }
 
-    # ``ancestor_ids`` walks the complete parent chain. Cache those results so
-    # sorting does not repeatedly traverse the same chains for every element.
+    result_set: set[str] = set(effective)
+    for item_id in effective:
+        for ancestor in ancestor_ids(item_id, parent_map):
+            if ancestor:
+                result_set.add(ancestor)
+
     ancestors_by_id = {
         item_id: ancestor_ids(item_id, parent_map)
-        for item_id in effective
+        for item_id in result_set
     }
     return sorted(
-        effective,
+        result_set,
         key=lambda value: (-len(ancestors_by_id[value]), value),
     )
 
@@ -89,8 +95,16 @@ def build_rebuild_plan(document: Mapping, item_ids: Iterable[str]) -> RebuildPla
     if not isinstance(roots, (list, tuple)):
         roots = []
     parent_map = build_parent_map(roots)
-    valid_ids = (str(item_id) for item_id in item_ids if str(item_id) in parent_map)
+    requested = {str(item_id) for item_id in item_ids if item_id}
+    valid_ids = (item_id for item_id in requested if item_id in parent_map)
+    effective = {
+        item_id
+        for item_id in valid_ids
+        if not any(ancestor in requested for ancestor in ancestor_ids(item_id, parent_map))
+    }
+    ordered = rebuild_order(effective, parent_map)
+    ordered = [item_id for item_id in ordered if item_id in effective]
     return RebuildPlan(
-        tuple(rebuild_order(valid_ids, parent_map)),
+        tuple(ordered),
         MappingProxyType(parent_map),
     )
