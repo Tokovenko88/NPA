@@ -18,7 +18,7 @@ from npa_processor.processing.html_utils import (
     remove_leading_number_from_html,
     split_html_to_paragraphs,
 )
-from npa_processor.processing.text_utils import clean_html_text
+from npa_processor.processing.identity import are_structural_elements_identical
 from npa_processor.processing.revision_builder import sync_parent_body_with_children
 from npa_processor.processing.text_utils import (
     clean_head_text,
@@ -152,9 +152,11 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                 data_context, log_callback, is_top_level=False,
                 override_mod_type=override_mod_type, is_table_child=is_table_child
             )
+            identical = are_structural_elements_identical(old_child, new_child_source)
             if (
                 not new_child_source.get('revisions')
                 and old_child.get('revisions')
+                and identical
             ):
                 old_active_rev = None
                 for rev in reversed(old_child['revisions']):
@@ -165,7 +167,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                     new_child_source['revisions'] = [copy.deepcopy(old_active_rev)]
                     if log_callback:
                         log_callback(f"  Активная ревизия перенесена из {old_child.get('item_id')} в {new_child_source.get('item_id')}", 'result')
-            elif old_child.get('revisions'):
+            elif old_child.get('revisions') and identical:
                 old_active_rev = None
                 for rev in reversed(old_child['revisions']):
                     if rev.get('valid_to') is None:
@@ -333,17 +335,19 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                         break
                     stack.extend(candidate.get('item_children', []))
                 if found_new is not None:
-                    _transfer_structural_state(old_child, found_new, log_callback)
-                    moved_keys.add(key)
-                    if old_child in old_children:
-                        old_children.remove(old_child)
-                    if log_callback:
-                        log_callback(f"  Перенесено состояние {key[0]} {key[1]} (ID {old_child.get('item_id')}) в новый элемент {found_new.get('item_id')}", 'result')
+                    if are_structural_elements_identical(old_child, found_new):
+                        _transfer_structural_state(old_child, found_new, log_callback)
+                        moved_keys.add(key)
+                        if old_child in old_children:
+                            old_children.remove(old_child)
+                        if log_callback:
+                            log_callback(f"  Перенесено состояние {key[0]} {key[1]} (ID {old_child.get('item_id')}) в новый элемент {found_new.get('item_id')}", 'result')
+                    else:
+                        if log_callback:
+                            log_callback(f"  Ребёнок {key[0]} {key[1]} (ID {old_child.get('item_id')}) найден в новом дереве, но содержание отличается. Закрываем старую ревизию.", 'info')
                     continue
-            if not _item_key_exists_in_new_tree(old_child.get('item_type'), old_child.get('item_number'), new_element):
-                if log_callback:
-                    log_callback(f"  Ребёнок {key[0]} {key[1]} (ID {old_child.get('item_id')}) не найден в новом дереве по ключу, сохраняем без закрытия ревизии", 'info')
-                continue
+            if not _item_key_exists_in_new_tree(old_child.get('item_type'), old_child.get('item_number'), new_element) and log_callback:
+                log_callback(f"  Ребёнок {key[0]} {key[1]} (ID {old_child.get('item_id')}) не найден в новом дереве по ключу, закрываем ревизию", 'info')
             child_revs = old_child.setdefault('revisions', [])
             active_rev = None
             for rev in reversed(child_revs):
@@ -384,10 +388,8 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
     filtered_ordered = []
     for child in ordered:
         key = (child.get('item_type'), child.get('item_number'))
-        if key in old_by_key and key not in new_by_key:
-            if not child.get('_pending_new_redaction_html') and not child.get('_pending_html'):
-                if _item_key_exists_in_new_tree(child.get('item_type'), child.get('item_number'), new_element):
-                    continue
+        if key in old_by_key and key not in new_by_key and not child.get('_pending_new_redaction_html') and not child.get('_pending_html') and _item_key_exists_in_new_tree(child.get('item_type'), child.get('item_number'), new_element):
+            continue
         filtered_ordered.append(child)
     old_element['item_children'] = filtered_ordered
     if is_table_child and old_element.get('item_type') in ('section', 'point', 'subpoint'):
@@ -485,8 +487,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
         else:
             if log_callback:
                 log_callback(f"  Элемент {old_element.get('item_id')} добавлен, создаём ревизию с пустым body", 'info')
-    if old_element.get('item_type') in ('article', 'chapter', 'section', 'appendix'):
-        if new_head is not None:
+    if old_element.get('item_type') in ('article', 'chapter', 'section', 'appendix') and new_head is not None:
             head_revisions = old_element.setdefault('head_revisions', [])
             active_idx = -1
             for i, rev in enumerate(head_revisions):
@@ -635,8 +636,7 @@ def _ensure_path(data, tokens, valid_from, modified_by_id, log_callback, context
         found = None
         candidates = []
         for item in current_items:
-            if item.get('item_type') == etype:
-                if num is None or match_item_type_and_number(item, etype, num):
+            if item.get('item_type') == etype and (num is None or match_item_type_and_number(item, etype, num)):
                     candidates.append(item)
         if len(candidates) == 1:
             found = candidates[0]
@@ -1241,10 +1241,8 @@ def build_new_body_preserving_child_refs(old_rev, answer_html):
     if not new_paragraphs:
         new_paragraphs = [answer_html] if answer_html.strip() else []
     new_body = []
-    para_idx = 0
-    for para in new_paragraphs:
-        new_body.append({'type': 'paragraph', 'html_text': para, 'order': para_idx + 1})
-        para_idx += 1
+    for para_idx, para in enumerate(new_paragraphs, 1):
+        new_body.append({'type': 'paragraph', 'html_text': para, 'order': para_idx})
     child_refs = [b for b in old_body if b.get('type') == 'child_ref']
     for ref in child_refs:
         new_ref = dict(ref)

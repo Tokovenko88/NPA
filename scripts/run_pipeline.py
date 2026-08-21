@@ -13,11 +13,8 @@ import re
 import time
 from datetime import datetime
 
-from bs4 import BeautifulSoup
-
 from npa_processor._bootstrap import _bootstrap_project_root
 from npa_processor.logging_utils import log
-
 from npa_processor.processing.stage_answers import reset_stage4_counters  # noqa: E402
 
 _bootstrap_project_root()
@@ -39,25 +36,27 @@ from npa_processor.paths import (  # noqa: E402
     save_json,
     save_text,
 )
-from npa_processor.processing.change_applier import apply_change, apply_stage1_revocation, apply_stage2_date_change  # noqa: E402
-from npa_processor.processing.html_utils import (  # noqa: E402
-    extract_paragraphs_by_indices,
-    get_full_element_html,
-    remove_leading_number_from_html,
+from npa_processor.processing.change_applier import (  # noqa: E402
+    apply_change,
+    apply_stage1_revocation,
+    apply_stage2_date_change,
 )
-from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
-from npa_processor.processing.recovery import attempt_recover_change  # noqa: E402
-from npa_processor.processing.reorganization import detect_and_apply_structural_reorganization  # noqa: E402
-from npa_processor.processing.tree_utils import _find_target_element  # noqa: E402
-from npa_processor.processing.tree_utils import find_item_by_id  # noqa: E402
 from npa_processor.processing.element_ops import (  # noqa: E402
     _find_existing_element_flexible,
     clean_number_for_filename,
-    close_revision_date,
     get_date_for_filename,
     rebuild_element_with_history,
 )
-
+from npa_processor.processing.html_utils import (  # noqa: E402
+    get_full_element_html,
+)
+from npa_processor.processing.recovery import attempt_recover_change  # noqa: E402
+from npa_processor.processing.reorganization import detect_and_apply_structural_reorganization  # noqa: E402
+from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
+from npa_processor.processing.tree_utils import (  # noqa: E402
+    _find_target_element,  # noqa: E402
+    find_item_by_id,  # noqa: E402
+)
 
 
 def _validate_stage3_changes(changes, log_callback):
@@ -680,6 +679,25 @@ def main(args=None):
         recurse(data.get('npa_items_revision', []))
         return duplicates
 
+    def _remove_empty_duplicate_items(data):
+        removed = []
+        def is_empty(item):
+            if item.get('revisions'):
+                return False
+            if item.get('item_children'):
+                return False
+            return not item.get('head_revisions')
+        def recurse(items):
+            for item in items[:]:
+                iid = item.get('item_id', '')
+                if '_double_' in str(iid) and is_empty(item):
+                    removed.append(iid)
+                    items.remove(item)
+                    continue
+                recurse(item.get('item_children', []))
+        recurse(data.get('npa_items_revision', []))
+        return removed
+
     def _fix_missing_child_refs(data):
         fixed = []
         def recurse(items):
@@ -723,16 +741,10 @@ def main(args=None):
         fixed = []
         def recurse(items):
             for item in items:
-                revs = item.get('revisions', [])
-                active_rev = None
-                for rev in reversed(revs):
-                    if rev.get('valid_to') in (None, ''):
-                        active_rev = rev
-                        break
-                if not active_rev and revs:
-                    active_rev = revs[-1]
-                if active_rev:
-                    body = active_rev.get('body', []) if isinstance(active_rev.get('body'), list) else []
+                for rev in item.get('revisions', []):
+                    body = rev.get('body', [])
+                    if not isinstance(body, list):
+                        continue
                     new_body = []
                     changed = False
                     for block in body:
@@ -744,7 +756,9 @@ def main(args=None):
                                 continue
                         new_body.append(block)
                     if changed:
-                        active_rev['body'] = new_body
+                        for idx, block in enumerate(new_body, 1):
+                            block['order'] = idx
+                        rev['body'] = new_body
                 recurse(item.get('item_children', []))
         recurse(data.get('npa_items_revision', []))
         return fixed
@@ -798,6 +812,14 @@ def main(args=None):
                 'bug': 'child_ref_broken',
                 'fix': f"Удалены битые child_ref, ссылающиеся на несуществующие item_id ({len(broken_refs)} шт.)",
                 'applied_to': broken_refs[:10],
+            })
+
+        removed_duplicates = _remove_empty_duplicate_items(data)
+        if removed_duplicates:
+            fixes.append({
+                'bug': 'duplicate_item_id_empty',
+                'fix': f"Удалены пустые дублирующиеся элементы ({len(removed_duplicates)} шт.)",
+                'applied_to': removed_duplicates[:10],
             })
 
         fixed_levels = _fix_invalid_item_levels(data)
@@ -951,10 +973,7 @@ def main(args=None):
                 source_context=source_npa_id,
             )
         else:
-            if not was_applied:
-                outcome_label = 'failed'
-            else:
-                outcome_label = 'verification_failed'
+            outcome_label = 'failed' if not was_applied else 'verification_failed'
             learner.record_mapping(
                 structural, None, success=False,
                 target_npa_id=target_npa_id, source_npa_id=source_npa_id,
