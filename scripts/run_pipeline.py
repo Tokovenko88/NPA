@@ -631,6 +631,7 @@ def main(args=None):
 
     def _fix_missing_valid_from(data, fallback_date, target_valid_from=None):
         fixed = []
+        details = []
         if target_valid_from is None:
             target_valid_from = data.get('valid_from') or data.get('date_signed') or data.get('date_pub') or fallback_date
         def recurse(items, level):
@@ -638,23 +639,31 @@ def main(args=None):
                 revs = item.get('revisions', [])
                 for _idx, rev in enumerate(revs):
                     if not rev.get('valid_from'):
-                        if rev.get('modified_by_id') or rev.get('mod_type'):
-                            rev['valid_from'] = fallback_date
-                        else:
-                            rev['valid_from'] = target_valid_from
+                        before = None
+                        after = fallback_date if rev.get('modified_by_id') or rev.get('mod_type') else target_valid_from
+                        rev['valid_from'] = after
                         fixed.append(item.get('item_id'))
+                        details.append({
+                            'item_id': item.get('item_id'),
+                            'before': before,
+                            'after': after,
+                        })
                 recurse(item.get('item_children', []), level + 1)
         recurse(data.get('npa_items_revision', []), 1)
         head_rev = data.get('head_revision', [])
         if isinstance(head_rev, list):
             for rev in head_rev:
                 if not rev.get('valid_from'):
-                    if rev.get('modified_by_id') or rev.get('mod_type'):
-                        rev['valid_from'] = fallback_date
-                    else:
-                        rev['valid_from'] = target_valid_from
+                    before = None
+                    after = fallback_date if rev.get('modified_by_id') or rev.get('mod_type') else target_valid_from
+                    rev['valid_from'] = after
                     fixed.append('head_revision')
-        return fixed
+                    details.append({
+                        'item_id': 'head_revision',
+                        'before': before,
+                        'after': after,
+                    })
+        return fixed, details
 
     def _fix_duplicate_item_ids(data):
         seen = {}
@@ -702,6 +711,7 @@ def main(args=None):
 
     def _fix_missing_child_refs(data):
         fixed = []
+        details = []
         def recurse(items):
             for item in items:
                 children = item.get('item_children', [])
@@ -729,10 +739,15 @@ def main(args=None):
                     if cid and cid not in existing_refs:
                         body.append({'type': 'child_ref', 'item_id': cid, 'order': len(body) + 1})
                         fixed.append(cid)
+                        details.append({
+                            'parent_item_id': item.get('item_id'),
+                            'parent_path': f"{item.get('item_type', '')} {item.get('item_number', '')}",
+                            'child_ref': cid,
+                        })
                 active_rev['body'] = body
                 recurse(item.get('item_children', []))
         recurse(data.get('npa_items_revision', []))
-        return fixed
+        return fixed, details
 
     def _fix_broken_child_refs(data):
         id_set = set()
@@ -744,6 +759,7 @@ def main(args=None):
                 collect_ids(item.get('item_children', []))
         collect_ids(data.get('npa_items_revision', []))
         fixed = []
+        details = []
         def recurse(items):
             for item in items:
                 for rev in item.get('revisions', []):
@@ -758,6 +774,11 @@ def main(args=None):
                             if ref_id and ref_id not in id_set:
                                 changed = True
                                 fixed.append(ref_id)
+                                details.append({
+                                    'parent_item_id': item.get('item_id'),
+                                    'parent_path': f"{item.get('item_type', '')} {item.get('item_number', '')}",
+                                    'child_ref': ref_id,
+                                })
                                 continue
                         new_body.append(block)
                     if changed:
@@ -766,19 +787,29 @@ def main(args=None):
                         rev['body'] = new_body
                 recurse(item.get('item_children', []))
         recurse(data.get('npa_items_revision', []))
-        return fixed
+        return fixed, details
 
     def _fix_invalid_item_levels(data):
         fixed = []
+        details = []
         def recurse(items, expected_level):
             for item in items:
                 actual = item.get('item_level')
                 if actual is not None and actual != expected_level:
+                    before = actual
                     item['item_level'] = expected_level
                     fixed.append(item.get('item_id'))
+                    details.append({
+                        'item_id': item.get('item_id'),
+                        'item_type': item.get('item_type'),
+                        'item_number': item.get('item_number'),
+                        'before': before,
+                        'after': expected_level,
+                        'reason': f"элемент находится на уровне {expected_level}",
+                    })
                 recurse(item.get('item_children', []), expected_level + 1)
         recurse(data.get('npa_items_revision', []), 1)
-        return fixed
+        return fixed, details
 
     def _apply_bug_fixes(data, source, target, learner):
         nonlocal auto_fixes_applied
@@ -787,12 +818,13 @@ def main(args=None):
         fallback_date = valid_from_date_str or source.get('valid_from') or source.get('date_signed') or source.get('date_pub')
         target_valid_from = data.get('valid_from') or data.get('date_signed') or data.get('date_pub') or fallback_date
 
-        fixed_ids = _fix_missing_valid_from(data, fallback_date, target_valid_from)
+        fixed_ids, valid_from_details = _fix_missing_valid_from(data, fallback_date, target_valid_from)
         if fixed_ids:
             fixes.append({
                 'bug': 'revision_valid_from_missing',
                 'fix': f"Установлен valid_from='{fallback_date}' для {len(fixed_ids)} элементов",
                 'applied_to': fixed_ids[:10],
+                'details': valid_from_details,
             })
 
         dups = _fix_duplicate_item_ids(data)
@@ -803,20 +835,22 @@ def main(args=None):
                 'applied_to': [d[1] for d in dups[:10]],
             })
 
-        missing_refs = _fix_missing_child_refs(data)
+        missing_refs, missing_ref_details = _fix_missing_child_refs(data)
         if missing_refs:
             fixes.append({
                 'bug': 'child_ref_missing',
                 'fix': f"Добавлены отсутствующие child_ref в body родителей ({len(missing_refs)} шт.)",
                 'applied_to': missing_refs[:10],
+                'details': missing_ref_details,
             })
 
-        broken_refs = _fix_broken_child_refs(data)
+        broken_refs, broken_ref_details = _fix_broken_child_refs(data)
         if broken_refs:
             fixes.append({
                 'bug': 'child_ref_broken',
                 'fix': f"Удалены битые child_ref, ссылающиеся на несуществующие item_id ({len(broken_refs)} шт.)",
                 'applied_to': broken_refs[:10],
+                'details': broken_ref_details,
             })
 
         removed_duplicates = _remove_empty_duplicate_items(data)
@@ -827,12 +861,13 @@ def main(args=None):
                 'applied_to': removed_duplicates[:10],
             })
 
-        fixed_levels = _fix_invalid_item_levels(data)
+        fixed_levels, level_details = _fix_invalid_item_levels(data)
         if fixed_levels:
             fixes.append({
                 'bug': 'item_level_invalid',
                 'fix': f"Пересчитан item_level для {len(fixed_levels)} элементов",
                 'applied_to': fixed_levels[:10],
+                'details': level_details,
             })
 
         v_after = StructureVerifier().verify(data, source_data=source)
@@ -1023,8 +1058,8 @@ def main(args=None):
     report = f"""# Отчёт об обработке НПА
 
 ## Исходные данные
-- Изменяющий НПA: {source.get('npa_number', '')} от {source.get('date_pub', '')}
-- Целевой НПA: {target.get('npa_number', '')} от {target.get('date_pub', '')}
+- Изменяющий НПA: {source.get('npa_number', '')} от {source.get('date_pub', '')} (valid_from: {source.get('valid_from', '')})
+- Целевой НПA: {target.get('npa_number', '')} от {target.get('date_pub', '')} (valid_from: {target.get('valid_from', '')})
 
 ## Этап 1: Утрата силы
 - Найдено указаний: {len(stage1_changes)}
@@ -1046,7 +1081,13 @@ def main(args=None):
 - Не применено: {changes_failed}
 - Ошибок верификации: {vdict['stats']['total_errors']}
 - Предупреждений: {vdict['stats']['total_warnings']}
+
+### Применённые изменения
 """
+    for idx, clog in enumerate(change_log, 1):
+        report += f"{idx}. {clog.get('structural_element', 'N/A')} [{clog.get('type', 'N/A')}] — {'успешно' if clog.get('applied') else 'ОШИБКА'}\n"
+        if clog.get('error'):
+            report += f"   Ошибка: {clog['error']}\n"
     if errors:
         report += "- Список ошибок:\n"
         for err in errors:
@@ -1075,7 +1116,20 @@ def main(args=None):
 """
     if auto_fixes_applied:
         for fix in auto_fixes_applied:
-            report += f" - [{fix['bug']}]: {fix['fix']}\n"
+            report += f"### {fix['bug']}\n"
+            report += f"- {fix['fix']}\n"
+            report += f"- Затронуто: {', '.join(fix.get('applied_to', [])[:20])}\n"
+            for detail in fix.get('details', [])[:10]:
+                if fix['bug'] == 'item_level_invalid':
+                    report += f"  - {detail.get('item_id')}: {detail.get('item_type')} {detail.get('item_number')} — before={detail.get('before')} → after={detail.get('after')}\n"
+                elif fix['bug'] == 'child_ref_missing':
+                    report += f"  - Родитель: {detail.get('parent_item_id')} ({detail.get('parent_path')})\n"
+                    report += f"    Добавлен child_ref: {detail.get('child_ref')}\n"
+                elif fix['bug'] == 'child_ref_broken':
+                    report += f"  - Родитель: {detail.get('parent_item_id')} ({detail.get('parent_path')})\n"
+                    report += f"    Удалён битый child_ref: {detail.get('child_ref')}\n"
+                elif fix['bug'] == 'revision_valid_from_missing':
+                    report += f"  - {detail.get('item_id')}: before={detail.get('before')} → after={detail.get('after')}\n"
     else:
         report += " - Автоматических исправлений не потребовалось\n"
 

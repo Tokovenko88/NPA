@@ -138,6 +138,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
     valid_from_dt = datetime.strptime(change_date, '%d.%m.%Y')
     valid_to_prev = close_revision_date(valid_from_dt)
     old_children = old_element.setdefault('item_children', [])
+    old_child_ids_before = [c.get('item_id') for c in list(old_children)]
     new_children = new_element.get('item_children', [])
     old_by_key = {(c.get('item_type'), c.get('item_number')): c for c in old_children}
     new_by_key = {(c.get('item_type'), c.get('item_number')): c for c in new_children}
@@ -341,11 +342,11 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                         if old_child in old_children:
                             old_children.remove(old_child)
                         if log_callback:
-                            log_callback(f"  Перенесено состояние {key[0]} {key[1]} (ID {old_child.get('item_id')}) в новый элемент {found_new.get('item_id')}", 'result')
+                             log_callback(f"  Перенесено состояние {key[0]} {key[1]} (ID {old_child.get('item_id')}) в новый элемент {found_new.get('item_id')}", 'result')
+                        continue
                     else:
                         if log_callback:
                             log_callback(f"  Ребёнок {key[0]} {key[1]} (ID {old_child.get('item_id')}) найден в новом дереве, но содержание отличается. Закрываем старую ревизию.", 'info')
-                    continue
             if not _item_key_exists_in_new_tree(old_child.get('item_type'), old_child.get('item_number'), new_element) and log_callback:
                 log_callback(f"  Ребёнок {key[0]} {key[1]} (ID {old_child.get('item_id')}) не найден в новом дереве по ключу, закрываем ревизию", 'info')
             child_revs = old_child.setdefault('revisions', [])
@@ -464,8 +465,7 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
             if first_cleaned == new_head:
                 new_body.pop(0)
                 for idx, block in enumerate(new_body, 1):
-                    block['order'] = idx
-    old_child_ids_before = [c.get('item_id') for c in old_children]
+                     block['order'] = idx
     old_child_ids_after = [c.get('item_id') for c in old_element.get('item_children', [])]
     children_changed = (old_child_ids_before != old_child_ids_after)
     current_text = get_element_text(old_element)
@@ -609,10 +609,9 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
         new_rev = {
             'body': new_body,
             'mod_type': mod_type,
-            'modified_by_id': modified_by_id
+            'modified_by_id': modified_by_id,
+            'valid_from': change_date,
         }
-        if mod_type == 'add':
-            new_rev['valid_from'] = change_date
         if highlights is not None and not is_highlights_empty(highlights):
             new_rev['highlights'] = highlights
         revisions.append(new_rev)
