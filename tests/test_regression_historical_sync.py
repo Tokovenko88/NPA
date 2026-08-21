@@ -242,7 +242,7 @@ def test_verifier_change_not_applied_prevents_passed():
 # ------------------------------------------------------------------
 # Test 7: report JSON contains applied_to with full item_ids
 # ------------------------------------------------------------------
-def test_report_json_contains_applied_to():
+def test_report_json_contains_applied_to(tmp_path):
     auto_fixes = [
         {
             "bug": "item_level_invalid",
@@ -259,7 +259,7 @@ def test_report_json_contains_applied_to():
         "auto_fixes": auto_fixes,
         "verification": {"passed": True},
     }
-    report_json_path = "E:/NPA-JSON-Agent/work/results/test_report.json"
+    report_json_path = tmp_path / "test_report.json"
     with open(report_json_path, "w", encoding="utf-8") as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
     with open(report_json_path, "r", encoding="utf-8") as f:

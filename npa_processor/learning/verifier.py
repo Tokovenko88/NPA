@@ -12,6 +12,11 @@ from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 
+from npa_processor.processing.revision_tree_sync import (
+    get_effective_revision,
+    get_latest_revision,
+)
+
 VALID_ITEM_TYPES = {
     'preamble', 'chapter', 'section', 'article', 'part', 'point',
     'subpoint', 'appendix', 'nested_appendix', 'structured_table',
@@ -180,6 +185,26 @@ def _active_revision(item):
     return revs[-1] if revs else None
 
 
+def _find_item(items, item_id):
+    """Find an item by id among a flat list (linear search)."""
+    for it in items:
+        if it.get('item_id') == item_id:
+            return it
+    return None
+
+
+def _date_lt(left, right):
+    """Return True if date string *left* is strictly earlier than *right*."""
+    if left is None or right is None:
+        return False
+    try:
+        dl = datetime.strptime(str(left).strip(), '%d.%m.%Y')
+        dr = datetime.strptime(str(right).strip(), '%d.%m.%Y')
+        return dl < dr
+    except (ValueError, TypeError):
+        return False
+
+
 class StructureVerifier:
     """Верификатор целостности структуры и соответствия ожидаемым изменениям.
 
@@ -225,6 +250,7 @@ class StructureVerifier:
         self._verify_item_types(items, result)
         self._verify_item_levels(data, result)
         self._verify_tree_integrity(data, items, result)
+        self._verify_revision_tree_consistency(data, items, result)
         self._verify_revisions(data, items, result)
         self._verify_dates(data, items, source_data, result)
         self._verify_modified_by_format(items, source_data, result)
@@ -355,6 +381,59 @@ class StructureVerifier:
                             f"child_ref РІ body элемента {item.get('item_id')}",
                             element=item.get('item_id'),
                             remediation='Добавить child_ref в body родителя',
+                        )
+
+    # ------------------------------------------------------------------
+    # 4b. Временная согласованность дерева редакций (REVISION_TREE_CONSISTENCY)
+    # ------------------------------------------------------------------
+    def _verify_revision_tree_consistency(self, data, items, result):
+        """Detect stale children and missing effective revisions.
+
+        For every revision dated ``T`` and every ``child_ref`` it contains, the
+        referenced child must have an effective revision on ``T``.  A child whose
+        latest revision predates ``T`` is ``stale_child_revision``: the parent
+        claims a new state at ``T`` while the child still reflects an older one.
+        """
+        id_set = {item.get('item_id') for item in items if item.get('item_id')}
+        for item in items:
+            item_id = item.get('item_id')
+            for rev in _iter_revisions(item):
+                vf = rev.get("valid_from")
+                if vf is None:
+                    continue
+                body = rev.get("body", []) if isinstance(rev.get("body"), list) else []
+                for block in body:
+                    if not isinstance(block, dict) or block.get("type") != "child_ref":
+                        continue
+                    ref_id = block.get("item_id")
+                    if not ref_id:
+                        continue
+                    if ref_id not in id_set:
+                        continue
+                    eff = get_effective_revision(_find_item(items, ref_id), vf)
+                    if eff is None:
+                        result.add_error(
+                            "revision_child_missing",
+                            f"child_ref '{ref_id}' не имеет эффективной ревизии на дату "
+                            f"'{vf}' (родитель {item_id})",
+                            element=item_id,
+                            remediation="Материализовать ревизию ребёнка на дату родителя",
+                        )
+                        continue
+                    latest = get_latest_revision(_find_item(items, ref_id))
+                    if latest is None:
+                        continue
+                    latest_vf = latest.get("valid_from")
+                    if latest_vf is not None and _date_lt(latest_vf, vf):
+                        result.add_error(
+                            "stale_child_revision",
+                            f"Ребёнок '{ref_id}' имеет последнюю ревизию от '{latest_vf}', "
+                            f"которая старше ревизии родителя '{item_id}' от '{vf}'",
+                            element=item_id,
+                            remediation=(
+                                "Создать ревизию ребёнка на дату родителя "
+                                f"'{vf}' (синхронизировать дерево редакций)"
+                            ),
                         )
 
     # ------------------------------------------------------------------

@@ -53,6 +53,7 @@ from npa_processor.processing.html_utils import (  # noqa: E402
 from npa_processor.processing.recovery import attempt_recover_change  # noqa: E402
 from npa_processor.processing.reorganization import detect_and_apply_structural_reorganization  # noqa: E402
 from npa_processor.processing.revision_builder import remove_empty_children  # noqa: E402
+from npa_processor.processing.revision_tree_sync import sync_revision_tree  # noqa: E402
 from npa_processor.processing.tree_utils import (  # noqa: E402
     _find_target_element,  # noqa: E402
     find_item_by_id,  # noqa: E402
@@ -607,6 +608,16 @@ def main(args=None):
     else:
         log("Stage 5: пропущен (--stage)")
 
+    # ========== REVISION TREE SYNC ==========
+    # Ensure every child referenced in a revision dated valid_from has its own
+    # effective revision on that date.  Without this, a parent new_redaction can
+    # sit above children that still reflect an older state (stale_child_revision).
+    log("\n=== REVISION TREE SYNC ===")
+    synced = sync_revision_tree(
+        result_data, valid_from_date_str, source_npa_id, log_callback=log,
+    )
+    log(f"  Revisions materialised by tree sync: {synced}")
+
     # ========== ADD revision_info ==========
     rev_info = {
         'revision_id': source_npa_id,
@@ -778,6 +789,11 @@ def main(args=None):
                                     'parent_item_id': item.get('item_id'),
                                     'parent_path': f"{item.get('item_type', '')} {item.get('item_number', '')}",
                                     'child_ref': ref_id,
+                                    'reason': "item_id не найден в дереве НПА",
+                                    'confidence': 'high',
+                                    'source': 'auto-fix:_fix_broken_child_refs',
+                                    'old_value': ref_id,
+                                    'new_value': None,
                                 })
                                 continue
                         new_body.append(block)
