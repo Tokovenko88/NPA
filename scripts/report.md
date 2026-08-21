@@ -1,25 +1,54 @@
-# Отчёт об обработке НПА
+# NPA Amendment Processing Report
 
-## 1. Исходные данные
-- Изменяющий НПА: 380-ЗС от 04.12.2017
-- Целевой НПА: 269-ЗС от 27.07.2016
+## 1. Source and Target NPA
+- Source: 380-ЗС от 04.12.2017
+- Target: 269-ЗС от 27.07.2016
 
-## 2. Результаты применения
-- Метод: прямой скрипт `scripts/fix_result.py`
-- Всего изменений: 11
-  - new_redaction: 10 (заголовок + статьи 1–8)
-  - add: 2 (статьи 5.1, 5.2)
-- Применено: 11
-- Не применено: 0
+## 2. Stage Results
+### Stage 1: Revocation Analysis
+- Changes found: 0
+- Applied: 0
+- Failed: 0
 
-## 3. Проверка структуры
-- Выходной файл: `work/results/269_2016_07_27_izm_380_2017_12_04.json`
-- head_revision: 2 записи (старая и новая редакция)
-- npa_items: 9 статей
-- Статья 9 не затронута изменениями (осталась без новой редакции)
-- Все новые редакции имеют `valid_from=15.12.2017` и `modified_by_id` из источника 380-ЗС
+### Stage 2: Dates and Retroactivity
+- Changes found: 0
+- Applied: 0
+- Failed: 0
 
-## 4. Итог
-- Статус: Успешно
-- Выходной файл: `work/results/269_2016_07_27_izm_380_2017_12_04.json`
-- Отчёт: `scripts/report.md`
+### Stage 3: Changes Extraction
+- Total changes: 11
+  - add: 2
+  - delete: 0
+  - change: 0
+  - new_redaction: 9
+- Applied: 11
+- Failed: 0
+
+### Stage 4: HTML Processing
+- Elements processed: 0
+
+### Stage 5: JSON Application
+- Changes applied: 11
+- Failed: 0
+
+## 3. Self-Modifications
+### Code Changes
+- None
+
+### Instruction Changes
+- None
+
+### Example Changes
+- None
+
+## 4. Characteristic Examples
+- None added or updated
+
+## 5. Base Issues Found
+- None
+
+## 6. Final Status
+- Status: SUCCESS
+- Output file: work/results/269_2016_07_27_izm_380_2017_12_04.json
+- Verification: PASSED
+- Warnings: none
