@@ -211,12 +211,12 @@ class StructureVerifier:
 
         if not isinstance(data, dict):
             result.add_error('root_structure',
-                             'РљРѕСЂРЅРµРІРѕР№ РѕР±СЉРµРєС‚ РЅРµ СЏРІР»СЏРµС‚СЃСЏ dict')
+                             'Корневой объект не является dict')
             return result
 
         if 'npa_items_revision' not in data:
             result.add_error('root_structure',
-                             'РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РїРѕР»Рµ npa_items_revision')
+                             'Отсутствует обязательное поле npa_items_revision')
             return result
 
         items = _walk_items(data)
@@ -238,6 +238,7 @@ class StructureVerifier:
 
         self._verify_no_inlined_children(data, result)
         self._verify_descriptions_not_full_html(changes, result)
+        self._verify_new_redaction_body_source(data, result)
 
         return result
 
@@ -250,14 +251,14 @@ class StructureVerifier:
             item_id = item.get('item_id')
             if not item_id:
                 result.add_error('item_id_missing',
-                                 'Р­Р»РµРјРµРЅС‚ Р±РµР· item_id', element=item.get('item_type'))
+                                 'Элемент без item_id', element=item.get('item_type'))
                 continue
             if item_id in seen:
                 result.add_error(
                     'item_id_duplicate',
-                    f"Р”СѓР±Р»РёСЂСѓРµС‚СЃСЏ item_id '{item_id}'",
+                    f"Дублируется item_id '{item_id}'",
                     element=item_id,
-                    remediation='Р”РѕР±Р°РІРёС‚СЊ СЃСѓС„С„РёРєСЃ _double_N Рє РґСѓР±Р»РёСЂСѓСЋС‰РµРјСѓ СЌР»РµРјРµРЅС‚Сѓ',
+                    remediation='Добавить суффикс _double_N к дублирующему элементу',
                 )
             else:
                 seen[item_id] = True
@@ -271,9 +272,9 @@ class StructureVerifier:
             if itype not in VALID_ITEM_TYPES:
                 result.add_error(
                     'item_type_invalid',
-                    f"РќРµРґРѕРїСѓСЃС‚РёРјС‹Р№ item_type '{itype}' РґР»СЏ СЌР»РµРјРµРЅС‚Р° {item.get('item_id')}",
+                    f"Недопустимый item_type '{itype}' для элемента {item.get('item_id')}",
                     element=item.get('item_id'),
-                    remediation='РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РѕРґРёРЅ РёР· РґРѕРїСѓСЃС‚РёРјС‹С… С‚РёРїРѕРІ РёР· СЃС…РµРјС‹',
+                    remediation='Использовать один из допустимых типов из схемы',
                 )
 
     # ------------------------------------------------------------------
@@ -288,10 +289,10 @@ class StructureVerifier:
                     result.add_error(
                         'item_level_invalid',
                         f"item_level={actual_level} РЅРµ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ РѕР¶РёРґР°РµРјРѕРјСѓ "
-                        f"{expected_level} РґР»СЏ СЌР»РµРјРµРЅС‚Р° {item.get('item_id')} "
+                        f"{expected_level} для элемента {item.get('item_id')} "
                         f"(С‚РёРї {item.get('item_type')}, РЅРѕРјРµСЂ '{item.get('item_number')}')",
                         element=item.get('item_id'),
-                        remediation='РЈСЃС‚Р°РЅРѕРІРёС‚СЊ item_level = (СѓСЂРѕРІРµРЅСЊ СЂРѕРґРёС‚РµР»СЏ + 1)',
+                        remediation='Установить item_level = (уровень родителя + 1)',
                     )
                 recurse(item.get('item_children', []), expected_level + 1)
         recurse(root_items, 1)
@@ -310,30 +311,30 @@ class StructureVerifier:
                 for block in body:
                     if not isinstance(block, dict):
                         result.add_warning('body_block_invalid',
-                                           f"Р‘Р»РѕРє body РЅРµ СЏРІР»СЏРµС‚СЃСЏ dict РІ {item_id}")
+                                           f"Блок body не является dict в {item_id}")
                         continue
                     btype = block.get('type')
                     if btype not in VALID_BODY_BLOCK_TYPES:
                         result.add_warning('body_block_type_unknown',
-                                           f"РќРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї Р±Р»РѕРєР° body '{btype}' РІ {item_id}",
+                                           f"Неизвестный тип блока body '{btype}' РІ {item_id}",
                                            element=item_id)
                     if btype == 'child_ref':
                         ref_id = block.get('item_id')
                         if not ref_id:
                             result.add_error('child_ref_broken',
-                                             'child_ref Р±РµР· item_id', element=item_id)
+                                             'child_ref без item_id', element=item_id)
                         elif ref_id not in id_set:
                             result.add_error(
                                 'child_ref_broken',
-                                f"child_ref СЃСЃС‹Р»Р°РµС‚СЃСЏ РЅР° РЅРµСЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ item_id "
+                                f"child_ref ссылается на несуществующий item_id "
                                 f"'{ref_id}' (РІ {item_id})",
                                 element=item_id,
-                                remediation='РџСЂРѕРІРµСЂРёС‚СЊ child_ref, РЅРµ СѓРґР°Р»С‘РЅ Р»Рё СЂРµР±С‘РЅРѕРє',
+                                remediation='Проверить child_ref, не удалён ли ребёнок',
                             )
                 orders = [b.get('order') for b in body if isinstance(b, dict) and 'order' in b]
                 if orders and orders != list(range(1, len(orders) + 1)):
                     result.add_warning('body_order_invalid',
-                                       f"РџРѕСЂСЏРґРѕРє Р±Р»РѕРєРѕРІ body РЅР°СЂСѓС€РµРЅ РІ {item_id}: {orders}",
+                                       f"Порядок блоков body нарушен в {item_id}: {orders}",
                                        element=item_id)
 
         for item in items:
@@ -350,10 +351,10 @@ class StructureVerifier:
                     if cid and cid not in body_child_refs:
                         result.add_warning(
                             'child_ref_missing',
-                            f"Р РµР±С‘РЅРѕРє {cid} РµСЃС‚СЊ РІ item_children, РЅРѕ РЅРµС‚ СЃСЃС‹Р»РєРё "
-                            f"child_ref РІ body СЌР»РµРјРµРЅС‚Р° {item.get('item_id')}",
+                            f"Ребёнок {cid} РµСЃС‚СЊ РІ item_children, РЅРѕ РЅРµС‚ СЃСЃС‹Р»РєРё "
+                            f"child_ref РІ body элемента {item.get('item_id')}",
                             element=item.get('item_id'),
-                            remediation='Р”РѕР±Р°РІРёС‚СЊ child_ref РІ body СЂРѕРґРёС‚РµР»СЏ',
+                            remediation='Добавить child_ref в body родителя',
                         )
 
     # ------------------------------------------------------------------
@@ -374,18 +375,18 @@ class StructureVerifier:
                 vt = rev.get('valid_to')
                 if vf is None:
                     result.add_error('revision_valid_from_missing',
-                                     f"Р РµРІРёР·РёСЏ {idx} СЌР»РµРјРµРЅС‚Р° {item_id} Р±РµР· valid_from",
+                                     f"Ревизия {idx} элемента {item_id} без valid_from",
                                      element=item_id)
                 else:
                     if not _is_valid_date_format(vf):
                         result.add_error('date_format_invalid',
                                          f"valid_from '{vf}' РЅРµ РІ С„РѕСЂРјР°С‚Рµ DD.MM.YYYY "
-                                         f"РІ СЂРµРІРёР·РёРё {idx} СЌР»РµРјРµРЅС‚Р° {item_id}",
+                                         f"в ревизии {idx} элемента {item_id}",
                                          element=item_id)
                 if vt is not None and not _is_valid_date_format(vt):
                     result.add_error('date_format_invalid',
                                      f"valid_to '{vt}' РЅРµ РІ С„РѕСЂРјР°С‚Рµ DD.MM.YYYY "
-                                     f"РІ СЂРµРІРёР·РёРё {idx} СЌР»РµРјРµРЅС‚Р° {item_id}",
+                                     f"в ревизии {idx} элемента {item_id}",
                                      element=item_id)
                 if vt in (None, ''):
                     active.append(rev)
@@ -398,7 +399,7 @@ class StructureVerifier:
                             if exp_vt is not None and vt != exp_vt:
                                 result.add_warning('date_continuity',
                                                    f"valid_to '{vt}' != valid_from '{next_vf}' - 1 РґРµРЅСЊ "
-                                                   f"(РѕР¶РёРґР°Р»РѕСЃСЊ {exp_vt}) РІ СЂРµРІРёР·РёРё {idx} СЌР»РµРјРµРЅС‚Р° {item_id}",
+                                                   f"(РѕР¶РёРґР°Р»РѕСЃСЊ {exp_vt}) в ревизии {idx} элемента {item_id}",
                                                    element=item_id)
 
             if len(active) > 1:
@@ -406,7 +407,7 @@ class StructureVerifier:
                     'revision_active_conflict',
                     f"Р­Р»РµРјРµРЅС‚ {item_id} РёРјРµРµС‚ {len(active)} Р°РєС‚РёРІРЅС‹С… СЂРµРІРёР·РёР№ (РґРѕР»Р¶РЅР° Р±С‹С‚СЊ 1)",
                     element=item_id,
-                    remediation='РћСЃС‚Р°РІРёС‚СЊ С‚РѕР»СЊРєРѕ РѕРґРЅСѓ Р°РєС‚РёРІРЅСѓСЋ СЂРµРІРёР·РёСЋ (valid_to=null)',
+                    remediation='Оставить только одну активную ревизию (valid_to=null)',
                 )
 
         head_rev = data.get('head_revision')
@@ -450,10 +451,10 @@ class StructureVerifier:
                         result.add_error(
                             'modified_by_id_bare',
                             f"modified_by_id '{mbid_str}' СЏРІР»СЏРµС‚СЃСЏ РіРѕР»С‹Рј РЅРѕРјРµСЂРѕРј РќРџРђ Р±РµР· СЃС‚СЂСѓРєС‚СѓСЂРЅРѕРіРѕ "
-                            f"СЃСѓС„С„РёРєСЃР°. РўСЂРµР±СѓРµС‚СЃСЏ РїРѕР»РЅС‹Р№ item_id РёР·РјРµРЅСЏСЋС‰РµРіРѕ СЌР»РµРјРµРЅС‚Р° "
+                            f"СЃСѓС„С„РёРєСЃР°. РўСЂРµР±СѓРµС‚СЃСЏ РїРѕР»РЅС‹Р№ item_id РёР·РјРµРЅСЏСЋС‰РµРіРѕ элемента "
                             f"РІ С„РѕСЂРјР°С‚Рµ '{{npa_id}}_{{type}}_{{number}}'.",
                             element=item_id,
-                            remediation='РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РїРѕР»РЅС‹Р№ item_id РёР·РјРµРЅСЏСЋС‰РµРіРѕ СЌР»РµРјРµРЅС‚Р° (РЅР°РїСЂРёРјРµСЂ, '
+                            remediation='РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РїРѕР»РЅС‹Р№ item_id РёР·РјРµРЅСЏСЋС‰РµРіРѕ элемента (РЅР°РїСЂРёРјРµСЂ, '
                                         '"37687_article_1_point_1"), Р° РЅРµ С‚РѕР»СЊРєРѕ РЅРѕРјРµСЂ РќРџРђ',
                         )
                         continue
@@ -464,7 +465,7 @@ class StructureVerifier:
                             result.add_warning(
                                 'modified_by_id_format',
                                 f"modified_by_id '{mbid_str}' РёРјРµРµС‚ РЅРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї "
-                                f"'{type_part}' РІ СЂРµРІРёР·РёРё СЌР»РµРјРµРЅС‚Р° {item_id}",
+                                f"'{type_part}' в ревизии элемента {item_id}",
                                 element=item_id,
                             )
                     elif not MOD_BY_ID_RE.match(mbid_str):
@@ -473,7 +474,7 @@ class StructureVerifier:
                             f"modified_by_id '{mbid_str}' РЅРµ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ С„РѕСЂРјР°С‚Сѓ "
                             f"'{{npa_id}}_{{type}}_{{number}}' РІ СЌР»РµРјРµРЅС‚Рµ {item_id}",
                             element=item_id,
-                            remediation='РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РїРѕР»РЅС‹Р№ item_id РёР·РјРµРЅСЏСЋС‰РµРіРѕ СЌР»РµРјРµРЅС‚Р°',
+                            remediation='Использовать полный item_id изменяющего элемента',
                         )
 
     # ------------------------------------------------------------------
@@ -487,7 +488,7 @@ class StructureVerifier:
                     continue
                 if not isinstance(highlights, dict):
                     result.add_warning('highlights_invalid',
-                                       f"highlights РЅРµ dict РІ {item.get('item_id')}")
+                                       f"highlights не dict в {item.get('item_id')}")
                     continue
                 for side in ('previous_edition', 'current_edition'):
                     sub = highlights.get(side)
@@ -533,7 +534,7 @@ class StructureVerifier:
                 for item in items
             )
             if has_add:
-                return {'passed': True, 'reason': 'Р”РѕР±Р°РІР»РµРЅС‹ РЅРѕРІС‹Рµ СЌР»РµРјРµРЅС‚С‹ РЅР° РєРѕСЂРЅРµРІРѕР№ СѓСЂРѕРІРµРЅСЊ'}
+                return {'passed': True, 'reason': 'Добавлены новые элементы на корневой уровень'}
             return {'passed': False,
                     'reason': f"Р­Р»РµРјРµРЅС‚ '{structural}' РЅРµ РЅР°Р№РґРµРЅ РІ СЂРµР·СѓР»СЊС‚Р°С‚Рµ",
                     'remediation': 'РџСЂРѕРІРµСЂРёС‚СЊ structural_element'}
@@ -559,8 +560,8 @@ class StructureVerifier:
         if structural_lower == 'наименование':
             head_revs = data.get('head_revision', []) if isinstance(data.get('head_revision'), list) else []
             if any(r.get('mod_type') in ('change', 'new_redaction') for r in head_revs):
-                return {'passed': True, 'reason': 'РќР°РёРјРµРЅРѕРІР°РЅРёРµ РќРџРђ РёР·РјРµРЅРµРЅРѕ'}
-            return {'passed': False, 'reason': 'РќР°РёРјРµРЅРѕРІР°РЅРёРµ РќРџРђ РЅРµ РёР·РјРµРЅРµРЅРѕ'}
+                return {'passed': True, 'reason': 'Наименование НПА изменено'}
+            return {'passed': False, 'reason': 'Наименование НПА не изменено'}
 
         target = self._resolve_target(data, structural)
         if target is None:
@@ -573,30 +574,30 @@ class StructureVerifier:
             if any(r.get('mod_type') in ('change', 'new_redaction') for r in head_revs):
                 return {'passed': True, 'reason': 'Р­Р»РµРјРµРЅС‚ СЃ РёР·РјРµРЅС‘РЅРЅС‹Рј наименованиеРј'}
             return {'passed': False,
-                    'reason': f"РќР°РёРјРµРЅРѕРІР°РЅРёРµ СЌР»РµРјРµРЅС‚Р° '{structural}' РЅРµ РёР·РјРµРЅРµРЅРѕ"}
+                    'reason': f"РќР°РёРјРµРЅРѕРІР°РЅРёРµ элемента '{structural}' РЅРµ РёР·РјРµРЅРµРЅРѕ"}
 
         if structural_lower.endswith(' префикс'):
-            return {'passed': True, 'reason': 'РџСЂРµС„РёРєСЃ РїСЂРёР»РѕР¶РµРЅРёСЏ РѕР±СЂР°Р±РѕС‚Р°РЅ'}
+            return {'passed': True, 'reason': 'Префикс приложения обработан'}
 
         if structural_lower == 'преамбула':
             rev = _active_revision(target)
             if rev and rev.get('mod_type') in ('new_redaction', 'change', 'delete'):
-                return {'passed': True, 'reason': f"РџСЂРµР°РјР±СѓР»Р°: mod_type={rev.get('mod_type')}"}
-            return {'passed': False, 'reason': 'РџСЂРµР°РјР±СѓР»Р° РЅРµ РёР·РјРµРЅРµРЅР°'}
+                return {'passed': True, 'reason': f"Преамбула: mod_type={rev.get('mod_type')}"}
+            return {'passed': False, 'reason': 'Преамбула не изменена'}
 
         mod_type = ch_type if ch_type in VALID_MOD_TYPES else 'new_redaction'
         rev = _active_revision(target)
         if rev is not None and rev.get('mod_type') == mod_type:
             return {'passed': True,
-                    'reason': f"Р­Р»РµРјРµРЅС‚ РёРјРµРµС‚ Р°РєС‚РёРІРЅСѓСЋ СЂРµРІРёР·РёСЋ СЃ mod_type={mod_type}"}
+                    'reason': f"Элемент имеет активную ревизию с mod_type={mod_type}"}
 
         all_revs = _iter_revisions(target)
         if any(r.get('mod_type') == mod_type for r in all_revs):
             return {'passed': True,
-                    'reason': f"Р­Р»РµРјРµРЅС‚ РёРјРµРµС‚ СЂРµРІРёР·РёСЋ СЃ mod_type={mod_type}"}
+                    'reason': f"Элемент имеет ревизию с mod_type={mod_type}"}
         return {'passed': False,
                 'reason': f"Р­Р»РµРјРµРЅС‚ '{structural}' РЅРµ РёРјРµРµС‚ СЂРµРІРёР·РёРё СЃ mod_type={mod_type}",
-                'remediation': 'РџРѕРІС‚РѕСЂРЅРѕ РїСЂРёРјРµРЅРёС‚СЊ РёР·РјРµРЅРµРЅРёРµ'}
+                'remediation': 'Повторно применить изменение'}
 
     def _verify_change_log(self, change_log, result):
         counts = {}
@@ -606,7 +607,7 @@ class StructureVerifier:
             if not entry.get('applied'):
                 result.add_warning(
                     'change_skipped',
-                    f"РР·РјРµРЅРµРЅРёРµ РЅРµ РїСЂРёРјРµРЅРµРЅРѕ: {entry.get('structural_element')} "
+                    f"Изменение не применено: {entry.get('structural_element')} "
                     f"({ct}) вЂ” {entry.get('error', '')}",
                 )
         result._change_log_counts = counts
@@ -665,17 +666,51 @@ class StructureVerifier:
                         f"description СЃРѕРґРµСЂР¶РёС‚ РїРѕР»РЅС‹Р№ HTML (>500 СЃРёРјРІРѕР»РѕРІ), "
                         f"РІРѕР·РјРѕР¶РЅРѕ, СЃРєРѕРїРёСЂРѕРІР°РЅ С‚РµРєСЃС‚ РёР· РёР·РјРµРЅСЏСЋС‰РµРіРѕ РќРџРђ",
                         change_index=idx,
-                        remediation='Р—Р°РјРµРЅРёС‚СЊ description РЅР° С‚РѕС‡РЅСѓСЋ РёРЅСЃС‚СЂСѓРєС†РёСЋ Р±РµР· РїРѕР»РЅРѕРіРѕ HTML',
+                        remediation='Заменить description на точную инструкцию без полного HTML',
                     )
             elif ch_type in ('new_redaction', 'add'):
                 if '<p>' in desc or '<' in desc:
                     result.add_error(
                         'description_contains_html_for_new_redaction',
                         f"Change #{idx} ({change.get('structural_element', '')}): "
-                        f"description РґР»СЏ new_redaction/add СЃРѕРґРµСЂР¶РёС‚ HTML С‚РµРіРё",
+                        f"description для new_redaction/add содержит HTML теги",
                         change_index=idx,
-                        remediation='Р—Р°РјРµРЅРёС‚СЊ description РЅР° Р°Р±СЃРѕР»СЋС‚РЅС‹Рµ РЅРѕРјРµСЂР° Р°Р±Р·Р°С†РµРІ (РЅР°РїСЂРёРјРµСЂ, "5-7")',
+                        remediation='Заменить description на абсолютные номера абзацев (например, "5-7")',
                     )
+
+    def _verify_new_redaction_body_source(self, data, result):
+        """Check that new_redaction bodies do not contain inherited child_refs."""
+        items = _walk_items(data)
+        id_to_item = {item.get('item_id'): item for item in items if item.get('item_id')}
+        for item in items:
+            item_id = item.get('item_id')
+            revs = _iter_revisions(item)
+            for idx, rev in enumerate(revs):
+                if rev.get('mod_type') != 'new_redaction':
+                    continue
+                body = rev.get('body', []) if isinstance(rev.get('body'), list) else []
+                child_refs_in_new = [b for b in body if isinstance(b, dict) and b.get('type') == 'child_ref']
+                if not child_refs_in_new:
+                    continue
+                prev_rev = revs[idx - 1] if idx > 0 else None
+                if prev_rev is None:
+                    continue
+                prev_body = prev_rev.get('body', []) if isinstance(prev_rev.get('body'), list) else []
+                prev_child_refs = {b.get('item_id') for b in prev_body if isinstance(b, dict) and b.get('type') == 'child_ref'}
+                for ref in child_refs_in_new:
+                    ref_id = ref.get('item_id')
+                    if ref_id in prev_child_refs:
+                        child_item = id_to_item.get(ref_id)
+                        child_active_rev = _active_revision(child_item) if child_item else None
+                        if child_active_rev is None or child_active_rev.get('valid_to') is not None:
+                            result.add_error(
+                                'revision_body_source_violation',
+                                f"new_redaction revision {idx} of {item_id} contains inherited child_ref "
+                                f"'{ref_id}' that was present in previous revision but child has no active revision",
+                                element=item_id,
+                                change_index=idx,
+                                remediation='Remove inherited child_ref from new_redaction body; child synchronization must be performed separately',
+                            )
 
 
 

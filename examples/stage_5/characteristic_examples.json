@@ -255,6 +255,91 @@
         "valid_from": "15.12.2017"
       },
       "notes": "КРИТИЧЕСКАЯ ОШИБКА. modified_by_id должен быть полным item_id, а не только номером НПА. Автоисправление: заменить на полный item_id из revision_number изменения."
+    },
+    {
+      "id": "s5_ex_05",
+      "slug": "new_redaction_without_inherited_children",
+      "name": "Новая редакция без автоматического переноса child_ref",
+      "change": {
+        "type": "new_redaction",
+        "structural_element": "Статья 2",
+        "modified_by_id": "33699_article_1_point_3",
+        "valid_from": "15.12.2017"
+      },
+      "old_element": {
+        "item_id": "16012_article_2",
+        "item_type": "article",
+        "item_number": "2",
+        "item_level": 1,
+        "item_children": [
+          {
+            "item_id": "16012_article_2_part_1",
+            "item_type": "part",
+            "item_number": "1",
+            "item_level": 2,
+            "revisions": [
+              {
+                "body": [
+                  {"type": "paragraph", "html_text": "<p>Old part 1</p>", "order": 1}
+                ],
+                "valid_from": "08.08.2016",
+                "valid_to": "14.12.2017",
+                "not_valid": "33699_article_1_point_3"
+              }
+            ]
+          },
+          {
+            "item_id": "16012_article_2_part_2",
+            "item_type": "part",
+            "item_number": "2",
+            "item_level": 2,
+            "revisions": [
+              {
+                "body": [
+                  {"type": "paragraph", "html_text": "<p>Old part 2</p>", "order": 1}
+                ],
+                "valid_from": "08.08.2016",
+                "valid_to": "14.12.2017",
+                "not_valid": "33699_article_1_point_3"
+              }
+            ]
+          }
+        ],
+        "revisions": [
+          {
+            "body": [
+              {"type": "child_ref", "item_id": "16012_article_2_part_1", "order": 1},
+              {"type": "child_ref", "item_id": "16012_article_2_part_2", "order": 2}
+            ],
+            "valid_from": "08.08.2016",
+            "valid_to": "14.12.2017"
+          }
+        ]
+      },
+      "canonical_new_body": [
+        {"type": "paragraph", "html_text": "<p class=\"justifyfull\">В собственность бесплатно отдельным категориям граждан могут быть предоставлены однократно земельные участки с видом разрешенного пользования «для индивидуального жилищного строительства».</p>", "order": 1}
+      ],
+      "expected_new_revision": {
+        "mod_type": "new_redaction",
+        "modified_by_id": "33699_article_1_point_3",
+        "valid_from": "15.12.2017",
+        "body": [
+          {"type": "paragraph", "html_text": "<p class=\"justifyfull\">В собственность бесплатно отдельным категориям граждан могут быть предоставлены однократно земельные участки с видом разрешенного пользования «для индивидуального жилищного строительства».</p>", "order": 1}
+        ]
+      },
+      "expected_child_sync": {
+        "16012_article_2_part_1": {
+          "action": "close_active_revision",
+          "reason": "child отсутствует в canonical new body",
+          "old_revision_valid_to": "14.12.2017"
+        },
+        "16012_article_2_part_2": {
+          "action": "close_active_revision",
+          "reason": "child отсутствует в canonical new body",
+          "old_revision_valid_to": "14.12.2017"
+        }
+      },
+      "notes": "КРИТИЧЕСКИЙ ПРИМЕР. Новая редакция статьи 2 полностью заменяет старый текст. Canonical parser output содержит ТОЛЬКО paragraph. Никакие child_ref из старой ревизии НЕ должны переноситься в новую. Дети part_1 и part_2 остаются в item_children для сохранения истории, но их активные ревизии закрываются (valid_to = 14.12.2017, not_valid = modified_by_id). Историческая реконструкция: state(14.12.2017) = старая статья 2 с part_1 и part_2; state(15.12.2017) = новая статья 2 без parts."
     }
   ]
 }

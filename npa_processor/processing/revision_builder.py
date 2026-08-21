@@ -9,7 +9,7 @@ def extract_child_refs_from_revision(rev):
         return []
     return [b for b in rev.get('body', []) if b.get('type') == 'child_ref']
 
-def sync_parent_body_with_children(parent_item, log_callback=None):
+def sync_parent_body_with_children(parent_item, log_callback=None, allow_new_redaction=False):
     if not parent_item:
         return
     children = parent_item.get('item_children', [])
@@ -26,6 +26,10 @@ def sync_parent_body_with_children(parent_item, log_callback=None):
     if not active_rev:
         if log_callback:
             log_callback(f"  sync_parent_body_with_children: нет активной ревизии у {parent_item.get('item_id')}", 'warning')
+        return
+    if not allow_new_redaction and active_rev.get('mod_type') == 'new_redaction':
+        if log_callback:
+            log_callback(f"  sync_parent_body_with_children: пропуск new_redaction у {parent_item.get('item_id')}", 'info')
         return
     body = active_rev.get('body', [])
     child_refs = [b for b in body if b.get('type') == 'child_ref']

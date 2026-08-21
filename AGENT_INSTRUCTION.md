@@ -59,6 +59,17 @@ All NPA modifications MUST produce deterministic, repeatable results:
 - All decisions must be traceable to specific rules or examples
 - If ambiguity arises, flag it in the report rather than guessing
 
+### 2.5 NEW REDACTION BODY SOURCE
+
+**CRITICAL RULE:** For `new_redaction`, the parent revision body MUST be taken exclusively from the canonical parser / Stage 4 output.
+
+- The previous revision body MUST NOT be used as a source of structure for the new revision.
+- `child_ref` entries from the previous revision MUST NOT be automatically copied into the new revision body.
+- Existing child elements may remain in the global document structure because history must be preserved, but their `child_ref` MUST NOT appear in the new parent revision unless the canonical new body explicitly contains that `child_ref`.
+- Child synchronization is a separate operation performed AFTER the canonical parent body has been established.
+
+Violation of this rule results in `revision_body_source_violation` and MUST be treated as a pipeline bug.
+
 ### 2.6 TEMPORARY FILES CLEANUP
 
 If you create temporary scripts, test files, debug outputs, or helper files during task execution:

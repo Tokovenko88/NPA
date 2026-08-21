@@ -514,6 +514,8 @@ def main(args=None):
                 return
             if element.get('_pending_mod_type') not in ('change', 'new_redaction'):
                 return
+            if element.get('_pending_mod_type') == 'new_redaction':
+                return
             has_changed_children = False
             def check_children_for_ids(item):
                 nonlocal has_changed_children
@@ -715,6 +717,9 @@ def main(args=None):
                 if not active_rev and revs:
                     active_rev = revs[-1]
                 if not active_rev:
+                    recurse(item.get('item_children', []))
+                    continue
+                if active_rev.get('mod_type') == 'new_redaction':
                     recurse(item.get('item_children', []))
                     continue
                 body = active_rev.get('body', [])

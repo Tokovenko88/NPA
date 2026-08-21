@@ -82,7 +82,7 @@ class LearningEngine:
                             changes_failed, manual_corrections, notes='',
                             changes_detail=None, verification=None,
                             elapsed_seconds=None):
-        """Р Р°СЃС€РёСЂРµРЅРЅР°СЏ Р·Р°РїРёСЃСЊ Р·Р°РїСѓСЃРєР° СЃ РїРѕР»РЅРѕР№ РёСЃС‚РѕСЂРёРµР№.
+        """Расширенная запись запуска с полной историей.
 
         ``changes_detail`` вЂ” СЃРїРёСЃРѕРє ``{"structural_element", "type",
         "applied", "error"}`` РґР»СЏ РєР°Р¶РґРѕРіРѕ изменения.
@@ -382,9 +382,9 @@ class LearningEngine:
     def get_failure_patterns(self, limit=20):
         """Сгруппировать исторические ошибки и вернуть рекомендации.
 
-        Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РїР°С‚С‚РµСЂРЅРѕРІ:
+        Возвращает список паттернов:
         ``{"structural_element", "error_category", "count", "suggestion"}``.
-        Р›СЋР±Р°СЏ РѕРїР»РѕС€РЅРѕСЃС‚СЊ РїСЂРёРІРѕРґРёС‚ Рє РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ Р°Р»РіРѕСЂРёС‚РјРёС‡РµСЃРєРѕРјСѓ СѓР»СѓС‡С€РµРЅРёСЋ.
+        Любая оплошность приводит к конкретному алгоритмическому улучшению.
         """
         by_key = defaultdict(list)
         for entry in self._change_outcomes:
@@ -408,7 +408,7 @@ class LearningEngine:
 
     @staticmethod
     def _suggest_for_pattern(structural_element, category, entries):
-        """РЎРіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ РєРѕРЅРєСЂРµС‚РЅРѕРµ Р°Р»РіРѕСЂРёС‚РјРёС‡РµСЃРєРѕРµ СѓР»СѓС‡С€РµРЅРёРµ РґР»СЏ РїР°С‚С‚РµСЂРЅР°."""
+        """Сгенерировать конкретное алгоритмическое улучшение для паттерна."""
         suggestions = []
         if category in ('item_id_duplicate',):
             suggestions.append('Р”РѕР±Р°РІРёС‚СЊ СЃСѓС„С„РёРєСЃ _double_N Рє РєРѕРЅС„Р»РёРєС‚СѓСЋС‰РµРјСѓ item_id')
@@ -419,13 +419,13 @@ class LearningEngine:
         if category in ('date_format_invalid', 'date_continuity'):
             suggestions.append('РџСЂРѕРІРµСЂРёС‚СЊ формат РґР°С‚ DD.MM.Y Рё РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ valid_to = valid_from - 1 РґРµРЅСЊ')
         if category in ('modified_by_id_format',):
-            suggestions.append('РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РџРћР›РќР«Р™ item_id РёСЃС‚РѕС‡РЅРёРєР°, Р° РЅРµ С‚РѕР»СЊРєРѕ npa_id')
+            suggestions.append('Использовать ПОЛНЫЙ item_id источника, а не только npa_id')
         if category in ('change_not_applied', 'revision_missing'):
             se = structural_element.lower() if structural_element else ''
             if 'СЃС‚Р°С‚СЊ' in se:
                 suggestions.append(
                     "РџСЂРѕРІРµСЂРёС‚СЊ РЅСѓРјРµСЂР°С†РёСЋ: СЃС‚Р°С‚СЊСЏ РјРѕР¶РµС‚ Р±С‹С‚СЊ РІР»РѕР¶РµРЅР° РІ РіР»Р°РІСѓ/раздел. "
-                    "РџРѕРїСЂРѕР±РѕРІР°С‚СЊ РїРѕРёСЃРє С‡РµСЂРµР· find_element_in_chapters_or_sections."
+                    "Попробовать поиск через find_element_in_chapters_or_sections."
                 )
             elif 'часть' in se or 'пункт' in se or 'РїРѕРґпункт' in se:
                 suggestions.append(
@@ -438,7 +438,7 @@ class LearningEngine:
                     "СЂР°СЃРєСЂС‹С‚РёРµ not_found С‡РµСЂРµР· РјР°РїРїРёРЅРі РёР· learn/element_mappings."
                 )
         if not suggestions:
-            suggestions.append(f"Р”РѕР±Р°РІРёС‚СЊ Р·Р°РїРёСЃСЊ РІ element_mappings СЃ РєРѕСЂСЂРµРєС‚РЅС‹Рј item_id РґР»СЏ '{structural_element}'")
+            suggestions.append(f"Добавить запись в element_mappings с корректным item_id для '{structural_element}'")
         return '; '.join(suggestions)
 
     def get_suggestions_for_element(self, structural_element):

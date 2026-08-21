@@ -435,6 +435,8 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
     if new_body is None:
         new_body = []
     for child in old_element.get('item_children', []):
+        if override_mod_type == 'new_redaction':
+            continue
         if child.get('_pending_new_redaction_html') or child.get('_pending_html'):
             child_id = child.get('item_id')
             if not any(b.get('type') == 'child_ref' and b.get('item_id') == child_id for b in new_body):

@@ -25,13 +25,24 @@ Examples:
 
 **FORBIDDEN:** Using only the NPA number (e.g., `"33699"`). This is a critical error.
 
-### 4.2 TREE STRUCTURE PRESERVATION
+### 4.2 NEW REDACTION BODY SOURCE
+
+For `new_redaction`, the parent revision body MUST be taken exclusively from the canonical parser / Stage 4 output.
+
+- The previous revision body MUST NOT be used as a source of structure for the new revision.
+- `child_ref` entries from the previous revision MUST NOT be automatically copied into the new revision body.
+- Existing child elements may remain in the global document structure because history must be preserved, but their `child_ref` MUST NOT appear in the new parent revision unless the canonical new body explicitly contains that `child_ref`.
+- Child synchronization is a separate operation performed AFTER the canonical parent body has been established.
+
+### 4.3 TREE STRUCTURE PRESERVATION
+
 When applying `new_redaction` to an element with children:
 - Children MUST remain in `item_children`
 - Parent `body` MUST contain ONLY:
-  - `paragraph` blocks with direct content
-  - `child_ref` blocks for unchanged children
+  - `paragraph` blocks with direct content from canonical parser output
+  - `child_ref` blocks ONLY if they are explicitly present in the canonical parser output
 - NEVER inline children HTML into parent body
+- NEVER inherit child_ref from previous revision merely because the child existed previously
 
 ### 4.3 REVISION MANAGEMENT
 - Close active revision: `valid_to` = (new_date - 1 day)
