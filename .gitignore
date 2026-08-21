@@ -47,3 +47,7 @@ npa_processor/learning/history/
 # Temporary working files
 tmp/
 
+# Build artifacts
+npa_json_agent.egg-info/
+*.egg-info/
+
