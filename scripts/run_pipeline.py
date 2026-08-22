@@ -651,28 +651,43 @@ def main(args=None):
                 for _idx, rev in enumerate(revs):
                     if not rev.get('valid_from'):
                         before = None
-                        after = fallback_date if rev.get('modified_by_id') or rev.get('mod_type') else target_valid_from
+                        # Новая редакция (есть modified_by_id/mod_type и не закрыта)
+                        # получает дату вступления (fallback_date); историческая /
+                        # наследуемая ревизия — дату первого вступления целевого НПА.
+                        is_new = bool(rev.get('modified_by_id') or rev.get('mod_type'))
+                        after = fallback_date if is_new else target_valid_from
                         rev['valid_from'] = after
                         fixed.append(item.get('item_id'))
                         details.append({
                             'item_id': item.get('item_id'),
+                            'revision_index': _idx,
+                            'field': 'valid_from',
                             'before': before,
                             'after': after,
+                            'reason': ('ревизия новой редакции без valid_from'
+                                       if is_new else 'историческая ревизия без valid_from'),
+                            'source': 'auto-fix:_fix_missing_valid_from',
                         })
                 recurse(item.get('item_children', []), level + 1)
         recurse(data.get('npa_items_revision', []), 1)
         head_rev = data.get('head_revision', [])
         if isinstance(head_rev, list):
-            for rev in head_rev:
+            for _idx, rev in enumerate(head_rev):
                 if not rev.get('valid_from'):
                     before = None
-                    after = fallback_date if rev.get('modified_by_id') or rev.get('mod_type') else target_valid_from
+                    is_new = bool(rev.get('modified_by_id') or rev.get('mod_type'))
+                    after = fallback_date if is_new else target_valid_from
                     rev['valid_from'] = after
-                    fixed.append('head_revision')
+                    fixed.append('head')
                     details.append({
-                        'item_id': 'head_revision',
+                        'item_id': 'head',
+                        'revision_index': _idx,
+                        'field': 'valid_from',
                         'before': before,
                         'after': after,
+                        'reason': ('ревизия заголовка новой редакции без valid_from'
+                                   if is_new else 'историческая ревизия заголовка без valid_from'),
+                        'source': 'auto-fix:_fix_missing_valid_from',
                     })
         return fixed, details
 
@@ -761,6 +776,13 @@ def main(args=None):
         return fixed, details
 
     def _fix_broken_child_refs(data):
+        """Исправление битых child_ref в ТЕКУЩИХ (открытых) ревизиях.
+
+        Исторические (закрытые) ревизии при этом НИКОГДА не трогаются: их
+        child_ref — часть юридического состояния периода ``[valid_from,
+        valid_to]``, и удаление ссылки уничтожило бы историю.  Для закрытой
+        ревизии с отсутствующим элементом это ошибка RECONCILIATION, а не
+        «мусорная ссылка» — её нужно исправлять в построении дерева."""
         id_set = set()
         def collect_ids(items):
             for item in items:
@@ -774,6 +796,9 @@ def main(args=None):
         def recurse(items):
             for item in items:
                 for rev in item.get('revisions', []):
+                    if rev.get('valid_to') not in (None, ''):
+                        # историческая ревизия — пропускаем
+                        continue
                     body = rev.get('body', [])
                     if not isinstance(body, list):
                         continue
@@ -836,9 +861,13 @@ def main(args=None):
 
         fixed_ids, valid_from_details = _fix_missing_valid_from(data, fallback_date, target_valid_from)
         if fixed_ids:
+            new_count = sum(1 for d in valid_from_details if d['after'] == fallback_date)
+            hist_count = len(valid_from_details) - new_count
             fixes.append({
                 'bug': 'revision_valid_from_missing',
-                'fix': f"Установлен valid_from='{fallback_date}' для {len(fixed_ids)} элементов",
+                'fix': (f"Установлен valid_from: {new_count} ревизиям новых редакций — '{fallback_date}', "
+                        f"{hist_count} историческим/наследуемым — '{target_valid_from}' "
+                        f"(всего {len(fixed_ids)} элементов)"),
                 'applied_to': fixed_ids[:10],
                 'details': valid_from_details,
             })

@@ -412,29 +412,35 @@ class StructureVerifier:
                         continue
                     eff = get_effective_revision(_find_item(items, ref_id), vf)
                     if eff is None:
-                        result.add_error(
-                            "revision_child_missing",
-                            f"child_ref '{ref_id}' не имеет эффективной ревизии на дату "
-                            f"'{vf}' (родитель {item_id})",
-                            element=item_id,
-                            remediation="Материализовать ревизию ребёнка на дату родителя",
-                        )
+                        # У ребёнка нет ревизии, покрывающей дату родителя.
+                        newest = get_latest_revision(_find_item(items, ref_id))
+                        newest_vf = newest.get("valid_from") if newest else None
+                        if newest is not None and newest_vf is not None:
+                            result.add_error(
+                                "stale_child_revision",
+                                f"Ребёнок '{ref_id}' имеет последнюю ревизию от '{newest_vf}', "
+                                f"которая закрыта до даты ревизии родителя '{item_id}' от '{vf}', "
+                                f"из-за чего у него нет эффективной ревизии на '{vf}'",
+                                element=item_id,
+                                remediation=(
+                                    "Материализовать/синхронизировать ревизию ребёнка на дату "
+                                    f"родителя '{vf}'"
+                                ),
+                            )
+                        else:
+                            result.add_error(
+                                "revision_child_missing",
+                                f"child_ref '{ref_id}' не имеет эффективной ревизии на дату "
+                                f"'{vf}' (родитель {item_id})",
+                                element=item_id,
+                                remediation="Материализовать ревизию ребёнка на дату родителя",
+                            )
                         continue
-                    latest = get_latest_revision(_find_item(items, ref_id))
-                    if latest is None:
-                        continue
-                    latest_vf = latest.get("valid_from")
-                    if latest_vf is not None and _date_lt(latest_vf, vf):
-                        result.add_error(
-                            "stale_child_revision",
-                            f"Ребёнок '{ref_id}' имеет последнюю ревизию от '{latest_vf}', "
-                            f"которая старше ревизии родителя '{item_id}' от '{vf}'",
-                            element=item_id,
-                            remediation=(
-                                "Создать ревизию ребёнка на дату родителя "
-                                f"'{vf}' (синхронизировать дерево редакций)"
-                            ),
-                        )
+                    # У ребёнка есть эффективная ревизия на дату родителя.
+                    # Если она началась раньше vf и осталась открытой — это
+                    # корректное наследование текста (дубликат revision не
+                    # создаётся); если она началась в vf — ребёнок был
+                    # материализован на дату новой редакции. Оба случая валидны.
 
     # ------------------------------------------------------------------
     # 5. Ревизии: активность, valid_from / valid_to, непрерывность

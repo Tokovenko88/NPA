@@ -107,6 +107,39 @@ def _item_key_exists_in_new_tree(item_type, item_number, new_element):
             return True
     return False
 
+def _ensure_initial_revision(element, change_date, modified_by_id, default_mod_type):
+    """Проставить временные атрибуты первой ревизии элемента, только что
+    созданного из новой структуры (например, части/пункты, появившиеся при
+    пересборке новой редакции статьи).
+
+    Такие элементы приходят из ``NpaToJsonGenerator`` с ревизией без
+    ``valid_from``/``mod_type``/``modified_by_id``.  Если этого не сделать,
+    последующий auto-fix интерпретирует их как «исторические» и выставит им
+    дату исходного НПА (08.08.2016), хотя юридически они образованы новой
+    редакцией (15.12.2017) — возникает ``stale_child_revision``.
+
+    Возвращает ``True``, если атрибуты были проставлены.
+    """
+    if not isinstance(element, dict):
+        return False
+    revs = element.get("revisions")
+    if not isinstance(revs, list) or not revs:
+        return False
+    if any(isinstance(r, dict) and r.get("valid_from") for r in revs):
+        return False
+    first = revs[0]
+    if not isinstance(first, dict):
+        return False
+    body = copy.deepcopy(first.get("body", []))
+    revs[0] = {
+        "body": body,
+        "valid_from": change_date,
+        "mod_type": default_mod_type,
+        "modified_by_id": modified_by_id,
+    }
+    return True
+
+
 def _transfer_structural_state(old_child, new_child, log_callback=None):
     """Переносит историю и отложенные (pending) изменения со старого элемента на новый.
 
@@ -229,8 +262,16 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                     if del_key in new_grand_by_key and del_key not in moved_keys:
                         old_child = old_by_key[del_key]
                         grand_source = new_grand_by_key[del_key]
-                        if any(rev.get('valid_from') or rev.get('mod_type') for rev in grand_source.get('revisions', [])):
-                            continue
+                        # Ребёнок «переехал» в новый контейнер (например, бывший
+                        # пункт статьи стал пунктом новой части).  Новый элемент
+                        # первым делом получает собственную ревизию с change_date
+                        # (иначе auto-fix пометит его как «исторический» и проставит
+                        # дату целевого НПА).  Старый элемент закрывается и
+                        # остаётся в дереве как историческая запись.
+                        _ensure_initial_revision(
+                            grand_source, change_date, modified_by_id,
+                            'add' if override_mod_type == 'add' else 'change',
+                        )
                         child_revs = old_child.setdefault('revisions', [])
                         active_rev = None
                         for rev in reversed(child_revs):
@@ -240,23 +281,6 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                         if active_rev is not None:
                             active_rev['valid_to'] = valid_to_prev
                             active_rev['not_valid'] = modified_by_id
-                        grand_source_revs = grand_source.setdefault('revisions', [])
-                        active_grand_rev = None
-                        for rev in reversed(grand_source_revs):
-                            if rev.get('valid_to') is None:
-                                active_grand_rev = rev
-                                break
-                        if active_grand_rev is not None and active_rev is not None:
-                            active_grand_rev['body'] = copy.deepcopy(active_rev.get('body', []))
-                        elif active_rev is not None or active_rev is not None:
-                            new_rev = copy.deepcopy(active_rev)
-                            new_rev.pop('valid_to', None)
-                            new_rev.pop('not_valid', None)
-                            if 'valid_from' in new_rev:
-                                del new_rev['valid_from']
-                            grand_source['revisions'] = [new_rev]
-                            if log_callback:
-                                log_callback(f"  Создана активная ревизия для {grand_source.get('item_id')} на основе старой ревизии {old_child.get('item_id')}", 'result')
                         if old_child.get('head_revisions'):
                             old_head_revs = old_child['head_revisions']
                             active_hr = None
@@ -266,24 +290,12 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                                     break
                             if active_hr is not None:
                                 active_hr['valid_to'] = valid_to_prev
-                            current_head_text = active_hr.get('head_text', '') if active_hr else ''
-                            grand_source_head_revs = grand_source.setdefault('head_revisions', [])
-                            active_grand_hr = None
-                            for hr in reversed(grand_source_head_revs):
-                                if hr.get('valid_to') is None:
-                                    active_grand_hr = hr
-                                    break
-                            if active_grand_hr is not None:
-                                active_grand_hr['head_text'] = current_head_text
-                            else:
-                                grand_source_head_revs.append({
-                                    'head_text': current_head_text,
-                                })
                         if old_child.get('item_notes') and 'item_notes' not in grand_source:
                             grand_source['item_notes'] = copy.deepcopy(old_child['item_notes'])
                         moved_keys.add(del_key)
                         if log_callback:
-                            log_callback(f"  Закрыта старая ревизия пункта {old_child.get('item_id')} (бывш. ребёнок {key[0]} {key[1]}) и переданы данные в {grand_source.get('item_id')}", 'result')
+                            log_callback(f"  Закрыта старая ревизия бывшего потомка {old_child.get('item_id')}; "
+                                         f"в новом контейнере используется {grand_source.get('item_id')} с датой {change_date}", 'result')
             for _nc_rev in new_child_source.get('revisions', []):
                 old_body = _nc_rev.get('body', [])
                 non_ref_blocks = [b for b in old_body if b.get('type') != 'child_ref']
@@ -295,9 +307,18 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
                 _nc_rev['body'] = new_body
             for attr in ['_pending_new_redaction_html', '_pending_mod_type', '_pending_modified_by_id', '_pending_valid_from']:
                 new_child_source.pop(attr, None)
+            # Проставить дату новой редакции всем элементам, только что созданным
+            # парсером перестройки (иначе auto-fix ошибочно пометит их как
+            # «исторические» и проставит дату целевого НПА вместо change_date).
+            def _ensure_new_subtree_initial(elem):
+                _ensure_initial_revision(
+                    elem, change_date, modified_by_id,
+                    'add' if override_mod_type == 'add' else 'change',
+                )
+                for _gc in elem.get('item_children', []):
+                    _ensure_new_subtree_initial(_gc)
+            _ensure_new_subtree_initial(new_child_source)
             old_children.append(new_child_source)
-            # ИСПРАВЛЕНИЕ: синхронизируем тело родителя, чтобы добавить child_ref на нового ребёнка
-            sync_parent_body_with_children(old_element, log_callback)
             if log_callback:
                 log_callback(f"  Добавлен новый ребёнок {key[0]} {key[1]} (ID {new_child_source.get('item_id')})", 'result')
     for key in all_keys:
@@ -387,9 +408,28 @@ def sync_structural_element_recursive(old_element, new_element, change_date, mod
         if c not in ordered:
             ordered.append(c)
     filtered_ordered = []
+    # Элементы, у которых закрыта хотя бы одна ревизия (valid_to проставлен),
+    # являются историческими записями и НЕ удаляются из дерева: по старым
+    # ревизиям родителя на них стоят child_ref, и их потеря породила бы
+    # битые ссылки и «пустую» историю (см. статью 4: бывшие пункты -> новые части).
+    # Фильтруются только элементы, ещё не закрытые (переехавшие живым состоянием
+    # в новое поддерево с тем же содержимым).
     for child in ordered:
+        if child is None:
+            continue
         key = (child.get('item_type'), child.get('item_number'))
-        if key in old_by_key and key not in new_by_key and not child.get('_pending_new_redaction_html') and not child.get('_pending_html') and _item_key_exists_in_new_tree(child.get('item_type'), child.get('item_number'), new_element):
+        closed_historically = any(
+            isinstance(rev, dict) and rev.get('valid_to') is not None
+            for rev in child.get('revisions', [])
+        )
+        if (
+            not closed_historically
+            and key in old_by_key
+            and key not in new_by_key
+            and not child.get('_pending_new_redaction_html')
+            and not child.get('_pending_html')
+            and _item_key_exists_in_new_tree(child.get('item_type'), child.get('item_number'), new_element)
+        ):
             continue
         filtered_ordered.append(child)
     old_element['item_children'] = filtered_ordered

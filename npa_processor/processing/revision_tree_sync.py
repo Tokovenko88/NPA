@@ -77,18 +77,31 @@ def get_effective_revision(item: dict, date: Any) -> Optional[dict]:
 
 
 def get_latest_revision(item: dict) -> Optional[dict]:
-    """Return the revision of *item* with the greatest ``valid_from``."""
+    """Return the revision of *item* with the greatest ``valid_from``.
+
+    Revisions without ``valid_from`` are treated as the earliest possible state
+    of the element (target NPA base revision with no explicit date).  When no
+    revision carries an explicit ``valid_from``, the last revision of the list
+    is returned so the caller can still access its body during synchronization.
+    """
     if not isinstance(item, dict):
         return None
     best: Optional[dict] = None
     best_vf: Optional[datetime] = None
-    for rev in item.get("revisions", []):
+    revs = item.get("revisions", [])
+    if not isinstance(revs, list):
+        return None
+    for rev in revs:
         vf = _parse_date(rev.get("valid_from"))
         if vf is None:
             continue
         if best_vf is None or vf > best_vf:
             best = rev
             best_vf = vf
+    if best is None and revs:
+        # Нет ни одной ревизии с явной датой — возвращаем последнюю,
+        # чтобы её body остался доступным для материализации/наследования.
+        best = revs[-1]
     return best
 
 
@@ -132,26 +145,32 @@ def sync_revision_tree(
         if log_callback:
             log_callback(msg, tag)
 
-    def _materialise(child: dict) -> bool:
-        """Create a revision at ``change_date`` for *child`` if its latest
-        revision predates ``change_date``."""
+    def _materialise(child: dict, mod_by: str) -> bool:
+        """Create a revision at ``change_date`` for *child* if it has no
+        effective revision on that date yet.
+
+        The rule intentionally avoids creating pointless copies: if the child
+        already has a revision effective on ``change_date`` (including an
+        inherited open revision), nothing is done.  Otherwise the child's
+        currently-active revision is closed on ``change_date - 1 day`` and a new
+        revision dated ``change_date`` is appended, preserving the latest body.
+        """
+        if get_effective_revision(child, change_date_str) is not None:
+            return False  # child already covers change_date (inherited or new)
         latest = get_latest_revision(child)
         if latest is None:
             return False
-        latest_vf = _parse_date(latest.get("valid_from"))
-        if latest_vf is None:
-            return False
-        if latest_vf >= change_dt:
-            return False  # child already has a revision at/after change_date
-        # Child is stale: close its currently-active revision and materialise
-        # a new one at change_date that preserves the latest body.
+        # Если у ребёнка есть открытая ревизия, начинающаяся раньше change_date,
+        # закрываем её — с date change_date у него должна существовать ревизия,
+        # начинающаяся ровно в этот день (модель полной материализации дерева).
         active = get_active_revision(child)
-        if active is not None:
+        if active is not None and active.get("valid_to") in (None, ""):
             active["valid_to"] = close_revision_date(change_date_str)
+        body_src = active.get("body", []) if active is not None else latest.get("body", [])
         new_rev = {
-            "body": copy.deepcopy(latest.get("body", [])),
+            "body": copy.deepcopy(body_src),
             "mod_type": "change",
-            "modified_by_id": modified_by_id,
+            "modified_by_id": mod_by,
             "valid_from": change_date_str,
         }
         child.setdefault("revisions", []).append(new_rev)
@@ -173,7 +192,11 @@ def sync_revision_tree(
                 child = find_item_by_id(data, child_id)
                 if child is None:
                     continue
-                if _materialise(child):
+                # modified_by_id у ревизии родителя указывает на конкретный
+                # изменяющий элемент (например '33699_article_1_point_9'),
+                # а не «голый» номер НПА — используем его для дочерней ревизии.
+                child_mod_by = rev.get("modified_by_id") or modified_by_id
+                if _materialise(child, child_mod_by):
                     created += 1
                     _log(
                         f"  SYNC-TREE: materialised revision at {change_date_str} "
