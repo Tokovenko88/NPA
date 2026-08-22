@@ -1,5 +1,5 @@
 {
-  "status": "Успешно",
+  "status": "С ошибками",
   "source_npa": {
     "number": "380-ЗС",
     "date_pub": "04.12.2017"
@@ -34,8 +34,8 @@
     "rebuild_count": 10
   },
   "verification": {
-    "passed": true,
-    "total_errors": 0,
+    "passed": false,
+    "total_errors": 10,
     "total_warnings": 0,
     "changes_total": 11,
     "changes_passed": 11,
@@ -44,18 +44,400 @@
   "auto_fixes": [
     {
       "bug": "revision_valid_from_missing",
-      "fix": "Установлен valid_from='15.12.2017' для 105 элементов",
+      "fix": "Установлен valid_from='15.12.2017' для 76 элементов",
       "applied_to": [
         "16012_article_1",
-        "16012_article_1",
-        "16012_article_2",
         "16012_article_2",
         "16012_article_2_part_1",
         "16012_article_2_part_1_point_1",
         "16012_article_2_part_1_point_2",
         "16012_article_2_part_1_point_3",
         "16012_article_2_part_1_point_4",
-        "16012_article_2_part_2"
+        "16012_article_2_part_2",
+        "16012_article_3",
+        "16012_article_3_point_1"
+      ],
+      "details": [
+        {
+          "item_id": "16012_article_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_1_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_1_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_1_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_1_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_2_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_3_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_3_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_3_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_3_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_1_point_5",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_4_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_5",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_6",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_7",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_8",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_9",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_10",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_10_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_10_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_10_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_part_11",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_1_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_1_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_2_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_2_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_2_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_2_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_5_2_point_5",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_2_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_2_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_2_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_2_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_6_part_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_5",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_6",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_7",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_8",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_9",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_10",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_7_part_11",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_2_point_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_2_point_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_2_point_3",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_8_part_2_point_4",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_9",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_9_part_1",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "16012_article_9_part_2",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "head_revision",
+          "before": null,
+          "after": "08.08.2016"
+        },
+        {
+          "item_id": "head_revision",
+          "before": null,
+          "after": "15.12.2017"
+        }
       ]
     },
     {
@@ -67,6 +449,58 @@
         "16012_article_4_point_3",
         "16012_article_4_point_4",
         "16012_article_4_point_5"
+      ],
+      "details": [
+        {
+          "parent_item_id": "16012_article_4",
+          "parent_path": "article 4",
+          "child_ref": "16012_article_4_point_1",
+          "reason": "item_id не найден в дереве НПА",
+          "confidence": "high",
+          "source": "auto-fix:_fix_broken_child_refs",
+          "old_value": "16012_article_4_point_1",
+          "new_value": null
+        },
+        {
+          "parent_item_id": "16012_article_4",
+          "parent_path": "article 4",
+          "child_ref": "16012_article_4_point_2",
+          "reason": "item_id не найден в дереве НПА",
+          "confidence": "high",
+          "source": "auto-fix:_fix_broken_child_refs",
+          "old_value": "16012_article_4_point_2",
+          "new_value": null
+        },
+        {
+          "parent_item_id": "16012_article_4",
+          "parent_path": "article 4",
+          "child_ref": "16012_article_4_point_3",
+          "reason": "item_id не найден в дереве НПА",
+          "confidence": "high",
+          "source": "auto-fix:_fix_broken_child_refs",
+          "old_value": "16012_article_4_point_3",
+          "new_value": null
+        },
+        {
+          "parent_item_id": "16012_article_4",
+          "parent_path": "article 4",
+          "child_ref": "16012_article_4_point_4",
+          "reason": "item_id не найден в дереве НПА",
+          "confidence": "high",
+          "source": "auto-fix:_fix_broken_child_refs",
+          "old_value": "16012_article_4_point_4",
+          "new_value": null
+        },
+        {
+          "parent_item_id": "16012_article_4",
+          "parent_path": "article 4",
+          "child_ref": "16012_article_4_point_5",
+          "reason": "item_id не найден в дереве НПА",
+          "confidence": "high",
+          "source": "auto-fix:_fix_broken_child_refs",
+          "old_value": "16012_article_4_point_5",
+          "new_value": null
+        }
       ]
     },
     {
@@ -75,10 +509,39 @@
       "applied_to": [
         "16012_article_5_1",
         "16012_article_5_2"
+      ],
+      "details": [
+        {
+          "item_id": "16012_article_5_1",
+          "item_type": "article",
+          "item_number": "5.1",
+          "before": 2,
+          "after": 1,
+          "reason": "элемент находится на уровне 1"
+        },
+        {
+          "item_id": "16012_article_5_2",
+          "item_type": "article",
+          "item_number": "5.2",
+          "before": 2,
+          "after": 1,
+          "reason": "элемент находится на уровне 1"
+        }
       ]
     }
   ],
-  "errors": [],
+  "errors": [
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_4_part_1' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_4' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_4_part_2' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_4' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_1_point_1' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_1' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_1_point_2' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_1' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_2_point_1' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_2' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_2_point_2' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_2' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_2_point_3' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_2' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_2_point_4' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_2' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_5_2_point_5' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_5_2' от '15.12.2017'",
+    "VERIFY[stale_child_revision]: Ребёнок '16012_article_7_part_7' имеет последнюю ревизию от '08.08.2016', которая старше ревизии родителя '16012_article_7' от '15.12.2017'"
+  ],
   "warnings": [],
   "change_log": [
     {
@@ -118,13 +581,13 @@
       "error": ""
     },
     {
-      "structural_element": "НПА",
+      "structural_element": "нпа",
       "type": "add",
       "applied": true,
       "error": ""
     },
     {
-      "structural_element": "НПА",
+      "structural_element": "нпа",
       "type": "add",
       "applied": true,
       "error": ""
@@ -149,5 +612,5 @@
     }
   ],
   "result_file": "work/results/269_2016_07_27_izm_380_2017_12_04.json",
-  "elapsed_seconds": 29.002571
+  "elapsed_seconds": 0.224193
 }

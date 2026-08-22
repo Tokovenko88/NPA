@@ -434,12 +434,12 @@
             },
             {
               "type": "child_ref",
-              "item_id": "16012_article_4_part_1",
+              "item_id": "16012_article_4_part_2",
               "order": 2
             },
             {
               "type": "child_ref",
-              "item_id": "16012_article_4_part_2",
+              "item_id": "16012_article_4_part_1",
               "order": 3
             }
           ],
